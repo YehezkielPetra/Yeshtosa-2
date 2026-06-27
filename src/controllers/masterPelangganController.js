@@ -16,11 +16,26 @@ async function listPelanggan(req, res) {
   const { data, error } = await query;
   if (error) req.flash('error', 'Gagal memuat pelanggan: ' + error.message);
 
+  // Ringkasan jumlah pelanggan (total keseluruhan, tidak terpengaruh filter
+  // pencarian yang sedang aktif, supaya selalu menunjukkan gambaran utuh).
+  const { data: semuaPelanggan } = await supabaseAdmin
+    .from('master_pelanggan')
+    .select('kategori, is_aktif');
+
+  const ringkasan = {
+    total: (semuaPelanggan || []).length,
+    aktif: (semuaPelanggan || []).filter(p => p.is_aktif).length,
+    konsumen: (semuaPelanggan || []).filter(p => p.kategori === 'konsumen').length,
+    reseller: (semuaPelanggan || []).filter(p => p.kategori === 'reseller').length,
+    stockPoint: (semuaPelanggan || []).filter(p => p.kategori === 'stock_point').length,
+  };
+
   res.render('master/pelanggan_list', {
     title: 'Master Pelanggan',
     pelangganList: data || [],
     filterKategori: kategori || '',
     q: q || '',
+    ringkasan,
   });
 }
 
@@ -33,6 +48,27 @@ function formTambahPelanggan(req, res) {
     namaAwal: nama || '',
     kembaliKe: kembali_ke || '',
   });
+}
+
+/**
+ * Endpoint AJAX: cek apakah sudah ada pelanggan dengan nama yang sama
+ * (case-insensitive). Dipakai form Tambah Pelanggan untuk menampilkan
+ * modal konfirmasi sebelum benar-benar menyimpan data duplikat.
+ */
+async function cekNamaDuplikat(req, res) {
+  const { nama, exclude_id } = req.query;
+  if (!nama || !nama.trim()) return res.json({ duplikat: [] });
+
+  let query = supabaseAdmin
+    .from('master_pelanggan')
+    .select('id, nomor_pelanggan, nama, kategori, is_aktif')
+    .ilike('nama', nama.trim());
+  if (exclude_id) query = query.neq('id', exclude_id);
+
+  const { data, error } = await query;
+  if (error) return res.json({ duplikat: [] });
+
+  res.json({ duplikat: data || [] });
 }
 
 async function simpanTambahPelanggan(req, res) {
@@ -150,5 +186,5 @@ async function simpanEditPelanggan(req, res) {
 
 module.exports = {
   listPelanggan, formTambahPelanggan, simpanTambahPelanggan,
-  formEditPelanggan, simpanEditPelanggan,
+  formEditPelanggan, simpanEditPelanggan, cekNamaDuplikat,
 };

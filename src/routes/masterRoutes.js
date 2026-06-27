@@ -25,6 +25,7 @@ router.post('/bahan-baku/:id/edit', requireRole('owner', 'admin'), bahanCtrl.sim
 
 // Master Pelanggan
 router.get('/pelanggan', pelangganCtrl.listPelanggan);
+router.get('/pelanggan/cek-duplikat', requireRole('owner', 'admin'), pelangganCtrl.cekNamaDuplikat);
 router.get('/pelanggan/tambah', requireRole('owner', 'admin'), pelangganCtrl.formTambahPelanggan);
 router.post('/pelanggan/tambah', requireRole('owner', 'admin'), pelangganCtrl.simpanTambahPelanggan);
 router.get('/pelanggan/:id/edit', requireRole('owner', 'admin'), pelangganCtrl.formEditPelanggan);

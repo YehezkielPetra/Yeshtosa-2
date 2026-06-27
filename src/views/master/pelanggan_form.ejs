@@ -10,13 +10,14 @@
     <% if (pelanggan) { %>
       <p class="text-xs text-ink/40 mb-4">No. Pelanggan: <span class="font-mono font-medium text-ink"><%= pelanggan.nomor_pelanggan %></span> (permanen, tidak dapat diubah)</p>
     <% } %>
-    <form action="<%= pelanggan ? `/master/pelanggan/${pelanggan.id}/edit` : '/master/pelanggan/tambah' %>" method="POST" class="space-y-4">
+    <form action="<%= pelanggan ? `/master/pelanggan/${pelanggan.id}/edit` : '/master/pelanggan/tambah' %>" method="POST" class="space-y-4" id="form-pelanggan">
       <% if (typeof kembaliKe !== 'undefined' && kembaliKe) { %>
         <input type="hidden" name="kembali_ke" value="<%= kembaliKe %>">
       <% } %>
+      <input type="hidden" name="konfirmasi_duplikat" id="konfirmasi_duplikat" value="">
       <div>
         <label class="label-field">Nama Pelanggan</label>
-        <input type="text" name="nama" required autofocus class="input-field" value="<%= pelanggan ? pelanggan.nama : (typeof namaAwal !== 'undefined' ? namaAwal : '') %>">
+        <input type="text" name="nama" id="nama_pelanggan" required autofocus class="input-field" value="<%= pelanggan ? pelanggan.nama : (typeof namaAwal !== 'undefined' ? namaAwal : '') %>">
       </div>
 
       <div>
@@ -95,4 +96,68 @@ function tambahFieldHp() {
   input.placeholder = '0812xxxxxxx';
   container.appendChild(input);
 }
+
+// --- Validasi nama pelanggan duplikat sebelum submit ---
+(function() {
+  const form = document.getElementById('form-pelanggan');
+  const namaInput = document.getElementById('nama_pelanggan');
+  const konfirmasiInput = document.getElementById('konfirmasi_duplikat');
+  const excludeId = <%- JSON.stringify(typeof pelanggan !== 'undefined' && pelanggan ? pelanggan.id : '') %>;
+
+  let sudahDikonfirmasi = false;
+  let namaTerakhirDicek = null;
+
+  // Jika nama diubah lagi setelah konfirmasi, batalkan konfirmasi sebelumnya
+  // supaya pengecekan dilakukan ulang dengan nama yang baru.
+  namaInput.addEventListener('input', () => {
+    if (namaInput.value.trim() !== namaTerakhirDicek) {
+      sudahDikonfirmasi = false;
+    }
+  });
+
+  form.addEventListener('submit', async function(e) {
+    if (sudahDikonfirmasi) return; // sudah dikonfirmasi user, lanjutkan submit normal
+
+    const nama = namaInput.value.trim();
+    if (!nama) return;
+
+    e.preventDefault();
+
+    try {
+      const url = `/master/pelanggan/cek-duplikat?nama=${encodeURIComponent(nama)}${excludeId ? `&exclude_id=${excludeId}` : ''}`;
+      const res = await fetch(url);
+      const data = await res.json();
+
+      if (data.duplikat && data.duplikat.length > 0) {
+        const details = data.duplikat.map(p =>
+          `${p.nomor_pelanggan} · ${p.nama} (${p.kategori.replace('_',' ')})${p.is_aktif ? '' : ' — nonaktif'}`
+        );
+        showConfirmModal({
+          title: 'Nama Pelanggan Sudah Ada',
+          message: `Sudah ada pelanggan dengan nama "${nama}" yang terdaftar:`,
+          details,
+          confirmLabel: 'Ya, Tetap Tambahkan',
+          cancelLabel: 'Batal, Saya Cek Dulu',
+          onConfirm() {
+            sudahDikonfirmasi = true;
+            namaTerakhirDicek = nama;
+            konfirmasiInput.value = '1';
+            form.submit();
+          },
+        });
+      } else {
+        // Tidak ada duplikat, lanjutkan submit seperti biasa
+        sudahDikonfirmasi = true;
+        namaTerakhirDicek = nama;
+        form.submit();
+      }
+    } catch (err) {
+      // Jika pengecekan gagal (misal koneksi bermasalah), jangan blokir
+      // admin dari menyimpan data — lanjutkan submit seperti biasa.
+      console.error('Gagal cek duplikat nama:', err);
+      sudahDikonfirmasi = true;
+      form.submit();
+    }
+  });
+})();
 </script>

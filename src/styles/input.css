@@ -99,4 +99,24 @@
   .combo-empty-action {
     @apply block mx-2 mb-1.5 mt-0.5 px-3 py-2 text-sm font-medium text-center text-white bg-clay rounded-md hover:bg-clay-dark transition-colors;
   }
+
+  /* Modal Konfirmasi */
+  .confirm-modal-overlay {
+    @apply fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4;
+  }
+  .confirm-modal-box {
+    @apply bg-white rounded-lg shadow-xl max-w-md w-full p-5;
+  }
+  .confirm-modal-title {
+    @apply font-display font-semibold text-base text-ink mb-2;
+  }
+  .confirm-modal-message {
+    @apply text-sm text-ink/70 mb-3;
+  }
+  .confirm-modal-details {
+    @apply text-sm bg-cream border border-line rounded-md px-3 py-2 mb-4 space-y-1 list-none;
+  }
+  .confirm-modal-actions {
+    @apply flex justify-end gap-3 mt-4;
+  }
 }

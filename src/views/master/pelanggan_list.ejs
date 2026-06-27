@@ -1,41 +1,69 @@
 <% layout('layouts/main') -%>
 
-<div class="panel">
-  <div class="flex items-center justify-between p-4 border-b border-line gap-3 flex-wrap">
-    <h2 class="text-sm font-semibold text-ink">Daftar Pelanggan</h2>
-    <div class="flex items-center gap-2">
-      <form method="GET" class="flex items-center gap-2">
-        <input type="text" name="q" value="<%= q %>" placeholder="Cari nama..." class="input-field text-sm w-44">
-        <select name="kategori" class="input-field text-sm" onchange="this.form.submit()">
-          <option value="">Semua Kategori</option>
-          <option value="konsumen" <%= filterKategori === 'konsumen' ? 'selected' : '' %>>Konsumen</option>
-          <option value="reseller" <%= filterKategori === 'reseller' ? 'selected' : '' %>>Reseller</option>
-          <option value="stock_point" <%= filterKategori === 'stock_point' ? 'selected' : '' %>>Stock Point</option>
-        </select>
-        <button type="submit" class="btn-secondary text-xs px-3 py-1.5">Cari</button>
-      </form>
-      <a href="/master/pelanggan/tambah" class="btn-primary text-sm">+ Tambah Pelanggan</a>
+<div class="space-y-5">
+  <!-- Ringkasan jumlah pelanggan -->
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+    <div class="stat-card">
+      <p class="text-xs uppercase tracking-wide text-ink/50 font-semibold">Total Pelanggan</p>
+      <p class="text-2xl font-display font-semibold text-ink"><%= ringkasan.total %></p>
+      <p class="text-xs text-ink/40"><%= ringkasan.aktif %> aktif</p>
+    </div>
+    <div class="stat-card">
+      <p class="text-xs uppercase tracking-wide text-ink/50 font-semibold">Konsumen</p>
+      <p class="text-2xl font-display font-semibold text-clay"><%= ringkasan.konsumen %></p>
+    </div>
+    <div class="stat-card">
+      <p class="text-xs uppercase tracking-wide text-ink/50 font-semibold">Reseller</p>
+      <p class="text-2xl font-display font-semibold text-sage-dark"><%= ringkasan.reseller %></p>
+    </div>
+    <div class="stat-card">
+      <p class="text-xs uppercase tracking-wide text-ink/50 font-semibold">Stock Point</p>
+      <p class="text-2xl font-display font-semibold text-frost"><%= ringkasan.stockPoint %></p>
     </div>
   </div>
-  <% if (pelangganList.length === 0) { %>
-    <%- include('../partials/empty_state', { message: 'Belum ada pelanggan ditemukan.', actionLabel: '+ Tambah Pelanggan', actionUrl: '/master/pelanggan/tambah' }) %>
-  <% } else { %>
-    <div class="table-wrap">
-<table class="table-erp">
-      <thead><tr><th>No. Pelanggan</th><th>Nama</th><th>Kategori</th><th>No. HP</th><th>Status</th><th></th></tr></thead>
-      <tbody>
-        <% pelangganList.forEach(p => { %>
-          <tr>
-            <td class="font-mono text-xs"><%= p.nomor_pelanggan %></td>
-            <td class="font-medium"><%= p.nama %></td>
-            <td><span class="pill pill-fresh capitalize"><%= p.kategori.replace('_', ' ') %></span></td>
-            <td class="text-xs"><%= (p.pelanggan_hp || []).map(h => h.nomor_hp).join(', ') || '-' %></td>
-            <td><span class="pill <%= p.is_aktif ? 'pill-lunas' : 'pill-belum' %>"><%= p.is_aktif ? 'Aktif' : 'Nonaktif' %></span></td>
-            <td><a href="/master/pelanggan/<%= p.id %>/edit" class="text-clay text-sm font-medium hover:underline">Edit</a></td>
-          </tr>
-        <% }) %>
-      </tbody>
-    </table>
-</div>
-  <% } %>
+
+  <div class="panel">
+    <div class="flex items-center justify-between p-4 border-b border-line gap-3 flex-wrap">
+      <div>
+        <h2 class="text-sm font-semibold text-ink">Daftar Pelanggan</h2>
+        <% if (q || filterKategori) { %>
+          <p class="text-xs text-ink/40 mt-0.5">Menampilkan <%= pelangganList.length %> dari <%= ringkasan.total %> pelanggan</p>
+        <% } %>
+      </div>
+      <div class="flex items-center gap-2">
+        <form method="GET" class="flex items-center gap-2">
+          <input type="text" name="q" value="<%= q %>" placeholder="Cari nama..." class="input-field text-sm w-44">
+          <select name="kategori" class="input-field text-sm" onchange="this.form.submit()">
+            <option value="">Semua Kategori</option>
+            <option value="konsumen" <%= filterKategori === 'konsumen' ? 'selected' : '' %>>Konsumen</option>
+            <option value="reseller" <%= filterKategori === 'reseller' ? 'selected' : '' %>>Reseller</option>
+            <option value="stock_point" <%= filterKategori === 'stock_point' ? 'selected' : '' %>>Stock Point</option>
+          </select>
+          <button type="submit" class="btn-secondary text-xs px-3 py-1.5">Cari</button>
+        </form>
+        <a href="/master/pelanggan/tambah" class="btn-primary text-sm">+ Tambah Pelanggan</a>
+      </div>
+    </div>
+    <% if (pelangganList.length === 0) { %>
+      <%- include('../partials/empty_state', { message: 'Belum ada pelanggan ditemukan.', actionLabel: '+ Tambah Pelanggan', actionUrl: '/master/pelanggan/tambah' }) %>
+    <% } else { %>
+      <div class="table-wrap">
+      <table class="table-erp">
+        <thead><tr><th>No. Pelanggan</th><th>Nama</th><th>Kategori</th><th>No. HP</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          <% pelangganList.forEach(p => { %>
+            <tr>
+              <td class="font-mono text-xs"><%= p.nomor_pelanggan %></td>
+              <td class="font-medium"><%= p.nama %></td>
+              <td><span class="pill pill-fresh capitalize"><%= p.kategori.replace('_', ' ') %></span></td>
+              <td class="text-xs"><%= (p.pelanggan_hp || []).map(h => h.nomor_hp).join(', ') || '-' %></td>
+              <td><span class="pill <%= p.is_aktif ? 'pill-lunas' : 'pill-belum' %>"><%= p.is_aktif ? 'Aktif' : 'Nonaktif' %></span></td>
+              <td><a href="/master/pelanggan/<%= p.id %>/edit" class="text-clay text-sm font-medium hover:underline">Edit</a></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+      </div>
+    <% } %>
+  </div>
 </div>
