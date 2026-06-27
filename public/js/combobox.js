@@ -12,7 +12,12 @@
 //   <script>
 //     initCombobox(document.querySelector('[data-name="pelanggan_id"]'), [
 //       { id: '...', label: 'PL-000001 · Budi (konsumen)', searchText: 'PL-000001 budi konsumen', kategori: 'konsumen' }
-//     ]);
+//     ], {
+//       emptyAction: {
+//         label: 'Tambah Pelanggan Baru',
+//         buildUrl: (query) => `/master/pelanggan/tambah?nama=${encodeURIComponent(query)}`
+//       }
+//     });
 //   </script>
 // ============================================================
 
@@ -22,9 +27,11 @@ function initCombobox(wrapEl, items, opts = {}) {
   const dropdown = wrapEl.querySelector('.combo-dropdown');
   const onSelect = opts.onSelect || function () {};
   const maxResults = opts.maxResults || 50;
+  const emptyAction = opts.emptyAction || null;
 
   let filtered = [];
   let activeIndex = -1;
+  let lastQuery = '';
 
   function normalize(str) {
     return (str || '').toString().toLowerCase();
@@ -32,7 +39,13 @@ function initCombobox(wrapEl, items, opts = {}) {
 
   function render() {
     if (filtered.length === 0) {
-      dropdown.innerHTML = '<div class="combo-empty">Tidak ditemukan</div>';
+      const emptyMessage = (emptyAction && emptyAction.message) || 'Tidak ditemukan';
+      let html = `<div class="combo-empty">${emptyMessage}</div>`;
+      if (emptyAction) {
+        const url = emptyAction.buildUrl(lastQuery);
+        html += `<a href="${url}" class="combo-empty-action">${emptyAction.label}</a>`;
+      }
+      dropdown.innerHTML = html;
     } else {
       dropdown.innerHTML = filtered
         .slice(0, maxResults)
@@ -43,6 +56,7 @@ function initCombobox(wrapEl, items, opts = {}) {
   }
 
   function filterItems(query) {
+    lastQuery = query || '';
     const q = normalize(query);
     if (!q) {
       filtered = items.slice(0, maxResults);
@@ -85,6 +99,8 @@ function initCombobox(wrapEl, items, opts = {}) {
       e.preventDefault();
       if (activeIndex >= 0 && filtered[activeIndex]) {
         selectItem(filtered[activeIndex]);
+      } else if (filtered.length === 0 && emptyAction) {
+        window.location.href = emptyAction.buildUrl(lastQuery);
       }
     } else if (e.key === 'Escape') {
       dropdown.classList.add('hidden');
@@ -98,15 +114,29 @@ function initCombobox(wrapEl, items, opts = {}) {
 
   dropdown.addEventListener('mousedown', (e) => {
     const itemEl = e.target.closest('.combo-item');
-    if (!itemEl) return;
-    e.preventDefault();
-    const idx = Number(itemEl.dataset.idx);
-    selectItem(filtered[idx]);
+    if (itemEl) {
+      e.preventDefault();
+      const idx = Number(itemEl.dataset.idx);
+      selectItem(filtered[idx]);
+      return;
+    }
+    // Tombol "Tambah Pelanggan Baru" dibiarkan navigasi normal (tidak preventDefault)
   });
 
   document.addEventListener('click', (e) => {
     if (!wrapEl.contains(e.target)) {
       dropdown.classList.add('hidden');
+    }
+  });
+
+  // Tombol "Tambah X Baru" di empty state ada di dalam wrapEl, jadi
+  // listener di atas tidak akan menutupnya sebelum navigasi terjadi.
+  // Tambahan pengaman: pastikan link tetap bisa diklik walau dropdown
+  // sempat tersembunyi sesaat akibat blur pada input.
+  dropdown.addEventListener('click', (e) => {
+    const actionEl = e.target.closest('.combo-empty-action');
+    if (actionEl) {
+      window.location.href = actionEl.getAttribute('href');
     }
   });
 

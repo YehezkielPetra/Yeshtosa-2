@@ -136,11 +136,26 @@
     kategori: p.kategori,
   }));
   initCombobox(document.querySelector('[data-name="pelanggan_id"]'), pelangganItems, {
+    initialId: <%- JSON.stringify(typeof pelangganBaruId !== 'undefined' ? pelangganBaruId : '') %> || null,
     onSelect(item) {
       kategoriPelangganTerpilih = item.kategori;
       updateRingkasan();
     },
+    emptyAction: {
+      message: 'Pelanggan tidak ditemukan',
+      label: '+ Tambah Pelanggan Baru',
+      buildUrl: (query) => `/master/pelanggan/tambah?nama=${encodeURIComponent(query)}&kembali_ke=penjualan`,
+    },
   });
+
+  // Jika baru kembali dari pembuatan pelanggan baru, langsung set kategori
+  // yang dipakai untuk kalkulasi harga sesuai pelanggan yang baru dibuat.
+  <% if (typeof pelangganBaruId !== 'undefined' && pelangganBaruId) { %>
+    (function() {
+      const found = pelangganItems.find(p => p.id === <%- JSON.stringify(pelangganBaruId) %>);
+      if (found) kategoriPelangganTerpilih = found.kategori;
+    })();
+  <% } %>
 
   function stokTersedia(produkId, status) {
     const s = STOK_LIST.find(s => s.produk_id === produkId && s.status === status);

@@ -1360,6 +1360,10 @@ h1, h2, h3 {
   border-top-width: 1px;
 }
 
+.border-clay\/30 {
+  border-color: rgb(193 80 46 / 0.3);
+}
+
 .border-line {
   --tw-border-opacity: 1;
   border-color: rgb(228 219 201 / var(--tw-border-opacity, 1));
@@ -1408,6 +1412,10 @@ h1, h2, h3 {
 .bg-clay {
   --tw-bg-opacity: 1;
   background-color: rgb(193 80 46 / var(--tw-bg-opacity, 1));
+}
+
+.bg-clay\/10 {
+  background-color: rgb(193 80 46 / 0.1);
 }
 
 .bg-clay\/70 {
@@ -1626,6 +1634,11 @@ h1, h2, h3 {
 .text-clay {
   --tw-text-opacity: 1;
   color: rgb(193 80 46 / var(--tw-text-opacity, 1));
+}
+
+.text-clay-dark {
+  --tw-text-opacity: 1;
+  color: rgb(156 61 34 / var(--tw-text-opacity, 1));
 }
 
 .text-cream {

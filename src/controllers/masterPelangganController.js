@@ -25,11 +25,18 @@ async function listPelanggan(req, res) {
 }
 
 function formTambahPelanggan(req, res) {
-  res.render('master/pelanggan_form', { title: 'Tambah Pelanggan', pelanggan: null, hpList: [] });
+  const { nama, kembali_ke } = req.query;
+  res.render('master/pelanggan_form', {
+    title: 'Tambah Pelanggan',
+    pelanggan: null,
+    hpList: [],
+    namaAwal: nama || '',
+    kembaliKe: kembali_ke || '',
+  });
 }
 
 async function simpanTambahPelanggan(req, res) {
-  const { nama, kategori, alamat, cabang_id, catatan } = req.body;
+  const { nama, kategori, alamat, cabang_id, catatan, kembali_ke } = req.body;
   let nomorHpArr = req.body.nomor_hp;
   if (!nomorHpArr) nomorHpArr = [];
   if (!Array.isArray(nomorHpArr)) nomorHpArr = [nomorHpArr];
@@ -62,6 +69,12 @@ async function simpanTambahPelanggan(req, res) {
 
     await catatAudit({ tabel: 'master_pelanggan', recordId: pelanggan.id, aksi: 'create', dataBaru: pelanggan, userId: req.session.user.id });
     req.flash('success', `Pelanggan berhasil ditambahkan dengan nomor ${pelanggan.nomor_pelanggan}.`);
+
+    // Jika admin datang dari form penjualan (tombol "Tambah Pelanggan Baru"),
+    // arahkan balik ke form tambah penjualan dengan pelanggan baru otomatis dipilih.
+    if (kembali_ke === 'penjualan') {
+      return res.redirect(`/penjualan/tambah?pelanggan_baru_id=${pelanggan.id}&pelanggan_baru_label=${encodeURIComponent(pelanggan.nomor_pelanggan + ' · ' + pelanggan.nama + ' (' + pelanggan.kategori.replace('_',' ') + ')')}`);
+    }
     res.redirect('/master/pelanggan');
   } catch (err) {
     req.flash('error', 'Gagal menambah pelanggan: ' + err.message);

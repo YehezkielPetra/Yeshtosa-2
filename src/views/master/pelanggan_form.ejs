@@ -1,14 +1,22 @@
 <% layout('layouts/main') -%>
 
 <div class="max-w-2xl space-y-5">
+  <% if (typeof kembaliKe !== 'undefined' && kembaliKe === 'penjualan') { %>
+    <div class="rounded-md bg-clay/10 border border-clay/30 text-clay-dark px-4 py-2.5 text-sm">
+      Pelanggan ini belum terdaftar. Lengkapi data di bawah, lalu Anda akan diarahkan kembali ke form Penjualan dengan pelanggan baru otomatis terpilih.
+    </div>
+  <% } %>
   <div class="panel p-5">
     <% if (pelanggan) { %>
       <p class="text-xs text-ink/40 mb-4">No. Pelanggan: <span class="font-mono font-medium text-ink"><%= pelanggan.nomor_pelanggan %></span> (permanen, tidak dapat diubah)</p>
     <% } %>
     <form action="<%= pelanggan ? `/master/pelanggan/${pelanggan.id}/edit` : '/master/pelanggan/tambah' %>" method="POST" class="space-y-4">
+      <% if (typeof kembaliKe !== 'undefined' && kembaliKe) { %>
+        <input type="hidden" name="kembali_ke" value="<%= kembaliKe %>">
+      <% } %>
       <div>
         <label class="label-field">Nama Pelanggan</label>
-        <input type="text" name="nama" required class="input-field" value="<%= pelanggan ? pelanggan.nama : '' %>">
+        <input type="text" name="nama" required autofocus class="input-field" value="<%= pelanggan ? pelanggan.nama : (typeof namaAwal !== 'undefined' ? namaAwal : '') %>">
       </div>
 
       <div>
@@ -51,7 +59,7 @@
 
       <div class="flex gap-3 pt-2">
         <button type="submit" class="btn-primary">Simpan</button>
-        <a href="/master/pelanggan" class="btn-secondary">Batal</a>
+        <a href="<%= (typeof kembaliKe !== 'undefined' && kembaliKe === 'penjualan') ? '/penjualan/tambah' : '/master/pelanggan' %>" class="btn-secondary">Batal</a>
       </div>
     </form>
   </div>

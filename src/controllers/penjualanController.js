@@ -40,10 +40,22 @@ async function formTambahPenjualan(req, res) {
   const cabangId = user.role === 'owner' ? (req.query.cabang_id || user.cabangId) : user.cabangId;
   const { data: stokList } = await supabaseAdmin.from('stok_produk').select('produk_id, status, jumlah').eq('cabang_id', cabangId);
 
+  // Jika admin baru saja membuat pelanggan baru dari form ini (lewat tombol
+  // "Tambah Pelanggan Baru" di hasil pencarian kosong), pastikan pelanggan
+  // tersebut ikut dalam daftar agar bisa langsung muncul terpilih.
+  let pelangganListFinal = pelangganList || [];
+  const { pelanggan_baru_id } = req.query;
+  if (pelanggan_baru_id && !pelangganListFinal.some(p => p.id === pelanggan_baru_id)) {
+    const { data: pelangganBaru } = await supabaseAdmin
+      .from('master_pelanggan').select('id, nomor_pelanggan, nama, kategori').eq('id', pelanggan_baru_id).maybeSingle();
+    if (pelangganBaru) pelangganListFinal = [pelangganBaru, ...pelangganListFinal];
+  }
+
   res.render('penjualan/form', {
     title: 'Tambah Penjualan', penjualan: null, detailList: [],
-    pelangganList: pelangganList || [], produkList: produkList || [],
+    pelangganList: pelangganListFinal, produkList: produkList || [],
     promoList: promoList || [], stokList: stokList || [], cabangId,
+    pelangganBaruId: pelanggan_baru_id || '',
   });
 }
 

@@ -96,4 +96,7 @@
   .combo-empty {
     @apply px-3 py-2 text-sm text-ink/40;
   }
+  .combo-empty-action {
+    @apply block mx-2 mb-1.5 mt-0.5 px-3 py-2 text-sm font-medium text-center text-white bg-clay rounded-md hover:bg-clay-dark transition-colors;
+  }
 }
