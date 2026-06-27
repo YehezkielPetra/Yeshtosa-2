@@ -1,0 +1,49 @@
+<% layout('layouts/main') -%>
+
+<div class="max-w-lg">
+  <div class="panel p-5">
+    <form action="<%= typeof user !== 'undefined' && user ? `/pengaturan/users/${user.id}/edit` : '/pengaturan/users/tambah' %>" method="POST" class="space-y-4">
+      <% if (typeof user === 'undefined' || !user) { %>
+        <div>
+          <label class="label-field">Email</label>
+          <input type="email" name="email" required class="input-field" placeholder="nama@yeshtosa.com">
+        </div>
+        <div>
+          <label class="label-field">Password</label>
+          <input type="password" name="password" required minlength="6" class="input-field" placeholder="Minimal 6 karakter">
+        </div>
+      <% } %>
+      <div>
+        <label class="label-field">Nama</label>
+        <input type="text" name="nama" required class="input-field" value="<%= typeof user !== 'undefined' && user ? user.nama : '' %>">
+      </div>
+      <div>
+        <label class="label-field">Role</label>
+        <select name="role" class="input-field">
+          <option value="admin" <%= typeof user !== 'undefined' && user && user.role === 'admin' ? 'selected' : '' %>>Admin</option>
+          <option value="produksi" <%= typeof user !== 'undefined' && user && user.role === 'produksi' ? 'selected' : '' %>>Produksi</option>
+          <option value="owner" <%= typeof user !== 'undefined' && user && user.role === 'owner' ? 'selected' : '' %>>Owner</option>
+        </select>
+      </div>
+      <div>
+        <label class="label-field">Cabang</label>
+        <select name="cabang_id" class="input-field">
+          <option value="">Tidak terikat cabang (Owner)</option>
+          <% cabangList.forEach(c => { %>
+            <option value="<%= c.id %>" <%= typeof user !== 'undefined' && user && user.cabang_id === c.id ? 'selected' : '' %>><%= c.nama %></option>
+          <% }) %>
+        </select>
+      </div>
+      <% if (typeof user !== 'undefined' && user) { %>
+        <div class="flex items-center gap-2">
+          <input type="checkbox" name="is_aktif" id="is_aktif" <%= user.is_aktif ? 'checked' : '' %> class="rounded border-line text-clay focus:ring-clay">
+          <label for="is_aktif" class="text-sm text-ink">Pengguna aktif</label>
+        </div>
+      <% } %>
+      <div class="flex gap-3 pt-2">
+        <button type="submit" class="btn-primary">Simpan</button>
+        <a href="/pengaturan/users" class="btn-secondary">Batal</a>
+      </div>
+    </form>
+  </div>
+</div>

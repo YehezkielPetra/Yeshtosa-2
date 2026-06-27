@@ -1,0 +1,67 @@
+<% layout('layouts/main') -%>
+
+<div class="max-w-2xl">
+  <div class="panel p-5">
+    <form action="/produksi/tambah" method="POST" class="space-y-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="label-field">Tanggal Produksi</label>
+          <input type="date" name="tanggal_produksi" class="input-field" value="<%= new Date().toISOString().slice(0,10) %>">
+        </div>
+        <div>
+          <label class="label-field">Hasil Produksi</label>
+          <select name="status_hasil" class="input-field">
+            <option value="fresh">Fresh</option>
+            <option value="frozen">Frozen</option>
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <label class="label-field">Pesanan Terkait (opsional)</label>
+        <select name="pesanan_terkait_id" class="input-field">
+          <option value="">Stok umum (bukan untuk pesanan tertentu)</option>
+          <% pesananList.forEach(p => { %>
+            <option value="<%= p.id %>"><%= p.nomor_order %> · <%= p.pelanggan ? p.pelanggan.nama : '-' %></option>
+          <% }) %>
+        </select>
+      </div>
+
+      <div>
+        <label class="label-field">Item yang Diproduksi</label>
+        <div id="item-container" class="space-y-2"></div>
+        <button type="button" onclick="tambahItem()" class="text-clay text-xs font-medium mt-2 hover:underline">+ Tambah produk</button>
+        <p class="text-xs text-ink/40 mt-2">Stok bahan baku akan otomatis berkurang sesuai resep produk yang sudah didaftarkan.</p>
+      </div>
+
+      <div>
+        <label class="label-field">Catatan</label>
+        <textarea name="catatan" rows="2" class="input-field"></textarea>
+      </div>
+
+      <div class="flex gap-3 pt-2">
+        <button type="submit" class="btn-primary">Simpan Produksi</button>
+        <a href="/produksi" class="btn-secondary">Batal</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  const PRODUK_LIST = <%- JSON.stringify(produkList) %>;
+  function produkOptionsHtml() {
+    return '<option value="">Pilih produk...</option>' + PRODUK_LIST.map(p => `<option value="${p.id}">${p.nama_produk}</option>`).join('');
+  }
+  function tambahItem() {
+    const container = document.getElementById('item-container');
+    const div = document.createElement('div');
+    div.className = 'flex gap-2 items-center item-row';
+    div.innerHTML = `
+      <select name="produk_id" class="input-field flex-1">${produkOptionsHtml()}</select>
+      <input type="number" name="jumlah" min="1" value="1" class="input-field w-28">
+      <button type="button" onclick="this.closest('.item-row').remove()" class="text-warn text-sm px-2">✕</button>
+    `;
+    container.appendChild(div);
+  }
+  tambahItem();
+</script>

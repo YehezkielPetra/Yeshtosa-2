@@ -1,0 +1,109 @@
+<% layout('layouts/main') -%>
+
+<div class="max-w-2xl space-y-5">
+  <div class="panel p-5">
+    <% if (supplier) { %>
+      <p class="text-xs text-ink/40 mb-4">No. Supplier: <span class="font-mono font-medium text-ink"><%= supplier.nomor_supplier %></span> (permanen)</p>
+    <% } %>
+    <form action="<%= supplier ? `/master/supplier/${supplier.id}/edit` : '/master/supplier/tambah' %>" method="POST" class="space-y-4">
+      <div>
+        <label class="label-field">Nama Supplier</label>
+        <input type="text" name="nama" required class="input-field" value="<%= supplier ? supplier.nama : '' %>">
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="label-field">Nomor HP</label>
+          <input type="text" name="nomor_hp" class="input-field" value="<%= supplier ? supplier.nomor_hp : '' %>" placeholder="0812xxxxxxx">
+        </div>
+        <div>
+          <label class="label-field">Barang Utama</label>
+          <input type="text" name="barang_utama" class="input-field" value="<%= supplier ? supplier.barang_utama : '' %>" placeholder="Tuna, Beras">
+        </div>
+      </div>
+
+      <div>
+        <label class="label-field">Alamat</label>
+        <textarea name="alamat" rows="2" class="input-field"><%= supplier && supplier.alamat ? supplier.alamat : '' %></textarea>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <input type="checkbox" name="is_supplier_utama" id="is_supplier_utama" <%= supplier && supplier.is_supplier_utama ? 'checked' : '' %> class="rounded border-line text-clay focus:ring-clay">
+        <label for="is_supplier_utama" class="text-sm text-ink">Supplier utama (bukan cadangan)</label>
+      </div>
+
+      <% if (supplier) { %>
+        <div class="flex items-center gap-2">
+          <input type="checkbox" name="is_aktif" id="is_aktif" <%= supplier.is_aktif ? 'checked' : '' %> class="rounded border-line text-clay focus:ring-clay">
+          <label for="is_aktif" class="text-sm text-ink">Supplier aktif</label>
+        </div>
+      <% } %>
+
+      <hr class="border-line">
+
+      <div>
+        <label class="label-field">Bahan Baku yang Dipasok &amp; Harga Beli Terakhir</label>
+        <div id="bahan-container" class="space-y-2">
+          <% const existingRelasi = (typeof bahanRelasi !== 'undefined' && bahanRelasi.length) ? bahanRelasi : [{}]; %>
+          <% existingRelasi.forEach((r, idx) => { %>
+            <div class="flex gap-2 items-center bahan-row">
+              <select name="bahan_baku_id" class="input-field flex-1">
+                <option value="">Pilih bahan baku...</option>
+                <% bahanList.forEach(b => { %>
+                  <option value="<%= b.id %>" <%= r.bahan_baku_id === b.id ? 'selected' : '' %>><%= b.nama_bahan %> (<%= b.satuan %>)</option>
+                <% }) %>
+              </select>
+              <input type="number" step="0.01" name="harga_beli" placeholder="Harga beli" class="input-field w-36" value="<%= r.harga_beli_terakhir || '' %>">
+              <label class="flex items-center gap-1 text-xs whitespace-nowrap">
+                <input type="checkbox" name="is_cadangan" value="<%= idx %>" <%= r.is_supplier_cadangan ? 'checked' : '' %> class="rounded border-line text-clay focus:ring-clay">
+                Cadangan
+              </label>
+            </div>
+          <% }) %>
+        </div>
+        <button type="button" onclick="tambahFieldBahan()" class="text-clay text-xs font-medium mt-2 hover:underline">+ Tambah bahan baku</button>
+      </div>
+
+      <div class="flex gap-3 pt-2">
+        <button type="submit" class="btn-primary">Simpan</button>
+        <a href="/master/supplier" class="btn-secondary">Batal</a>
+      </div>
+    </form>
+  </div>
+
+  <% if (typeof riwayatPembelian !== 'undefined' && riwayatPembelian.length > 0) { %>
+    <div class="panel p-5">
+      <h3 class="text-sm font-semibold text-ink mb-3">Riwayat Pembelian</h3>
+      <div class="table-wrap">
+<table class="table-erp">
+        <thead><tr><th>No. Pembelian</th><th>Tanggal</th><th>Total</th><th>Status</th></tr></thead>
+        <tbody>
+          <% riwayatPembelian.forEach(p => { %>
+            <tr>
+              <td class="font-mono text-xs"><%= p.nomor_pembelian %></td>
+              <td><%= tanggalIndo(p.tanggal_beli) %></td>
+              <td><%= rupiah(p.total) %></td>
+              <td><%- include('../partials/status_bayar_pill', { status: p.status_bayar }) %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+</div>
+    </div>
+  <% } %>
+</div>
+
+<script>
+const bahanOptionsHtml = `<%- bahanList.map(b => `<option value="${b.id}">${b.nama_bahan} (${b.satuan})</option>`).join('') %>`;
+function tambahFieldBahan() {
+  const container = document.getElementById('bahan-container');
+  const div = document.createElement('div');
+  div.className = 'flex gap-2 items-center bahan-row';
+  div.innerHTML = `
+    <select name="bahan_baku_id" class="input-field flex-1"><option value="">Pilih bahan baku...</option>${bahanOptionsHtml}</select>
+    <input type="number" step="0.01" name="harga_beli" placeholder="Harga beli" class="input-field w-36">
+    <label class="flex items-center gap-1 text-xs whitespace-nowrap"><input type="checkbox" name="is_cadangan" class="rounded border-line text-clay focus:ring-clay"> Cadangan</label>
+  `;
+  container.appendChild(div);
+}
+</script>

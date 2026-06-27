@@ -1,0 +1,38 @@
+<% layout('layouts/auth') -%>
+
+<div class="min-h-screen flex items-center justify-center px-4">
+  <div class="w-full max-w-sm">
+    <div class="text-center mb-8">
+      <div class="h-12 w-12 rounded-lg bg-clay flex items-center justify-center font-display font-bold text-white text-xl mx-auto mb-3">Y</div>
+      <h1 class="font-display text-2xl font-semibold text-cream">Yeshtosa</h1>
+      <p class="text-cream/40 text-sm mt-1">Business Management System</p>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-panel p-6">
+      <% if (flashError && flashError.length) { %>
+        <div class="mb-4 rounded-md bg-warn/10 border border-warn/30 text-warn px-3 py-2 text-sm">
+          <%= flashError[0] %>
+        </div>
+      <% } %>
+      <% if (flashSuccess && flashSuccess.length) { %>
+        <div class="mb-4 rounded-md bg-sage/10 border border-sage/30 text-sage-dark px-3 py-2 text-sm">
+          <%= flashSuccess[0] %>
+        </div>
+      <% } %>
+
+      <form action="/login" method="POST" class="space-y-4">
+        <div>
+          <label class="label-field">Email</label>
+          <input type="email" name="email" required autofocus class="input-field" placeholder="nama@yeshtosa.com">
+        </div>
+        <div>
+          <label class="label-field">Password</label>
+          <input type="password" name="password" required class="input-field" placeholder="••••••••">
+        </div>
+        <button type="submit" class="btn-primary w-full mt-2">Masuk</button>
+      </form>
+    </div>
+
+    <p class="text-center text-cream/30 text-xs mt-6">Hubungi Owner jika belum memiliki akun.</p>
+  </div>
+</div>

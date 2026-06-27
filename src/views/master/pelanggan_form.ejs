@@ -1,0 +1,90 @@
+<% layout('layouts/main') -%>
+
+<div class="max-w-2xl space-y-5">
+  <div class="panel p-5">
+    <% if (pelanggan) { %>
+      <p class="text-xs text-ink/40 mb-4">No. Pelanggan: <span class="font-mono font-medium text-ink"><%= pelanggan.nomor_pelanggan %></span> (permanen, tidak dapat diubah)</p>
+    <% } %>
+    <form action="<%= pelanggan ? `/master/pelanggan/${pelanggan.id}/edit` : '/master/pelanggan/tambah' %>" method="POST" class="space-y-4">
+      <div>
+        <label class="label-field">Nama Pelanggan</label>
+        <input type="text" name="nama" required class="input-field" value="<%= pelanggan ? pelanggan.nama : '' %>">
+      </div>
+
+      <div>
+        <label class="label-field">Kategori</label>
+        <select name="kategori" class="input-field">
+          <option value="konsumen" <%= pelanggan && pelanggan.kategori === 'konsumen' ? 'selected' : '' %>>Konsumen</option>
+          <option value="reseller" <%= pelanggan && pelanggan.kategori === 'reseller' ? 'selected' : '' %>>Reseller</option>
+          <option value="stock_point" <%= pelanggan && pelanggan.kategori === 'stock_point' ? 'selected' : '' %>>Stock Point</option>
+        </select>
+        <p class="text-xs text-ink/40 mt-1">Kategori dapat berubah sewaktu-waktu. Riwayat transaksi tetap tersimpan, dan perubahan kategori akan otomatis dicatat di histori.</p>
+      </div>
+
+      <div>
+        <label class="label-field">Nomor HP <span class="text-ink/40">(boleh lebih dari satu)</span></label>
+        <div id="hp-container" class="space-y-2">
+          <% const existingHp = (typeof hpList !== 'undefined' && hpList.length) ? hpList : [{ nomor_hp: '' }]; %>
+          <% existingHp.forEach(h => { %>
+            <input type="text" name="nomor_hp" class="input-field" value="<%= h.nomor_hp %>" placeholder="0812xxxxxxx">
+          <% }) %>
+        </div>
+        <button type="button" onclick="tambahFieldHp()" class="text-clay text-xs font-medium mt-2 hover:underline">+ Tambah nomor HP</button>
+      </div>
+
+      <div>
+        <label class="label-field">Alamat</label>
+        <textarea name="alamat" rows="2" class="input-field"><%= pelanggan && pelanggan.alamat ? pelanggan.alamat : '' %></textarea>
+      </div>
+
+      <div>
+        <label class="label-field">Catatan</label>
+        <textarea name="catatan" rows="2" class="input-field"><%= pelanggan && pelanggan.catatan ? pelanggan.catatan : '' %></textarea>
+      </div>
+
+      <% if (pelanggan) { %>
+        <div class="flex items-center gap-2">
+          <input type="checkbox" name="is_aktif" id="is_aktif" <%= pelanggan.is_aktif ? 'checked' : '' %> class="rounded border-line text-clay focus:ring-clay">
+          <label for="is_aktif" class="text-sm text-ink">Pelanggan aktif</label>
+        </div>
+      <% } %>
+
+      <div class="flex gap-3 pt-2">
+        <button type="submit" class="btn-primary">Simpan</button>
+        <a href="/master/pelanggan" class="btn-secondary">Batal</a>
+      </div>
+    </form>
+  </div>
+
+  <% if (typeof historiKategori !== 'undefined' && historiKategori.length > 0) { %>
+    <div class="panel p-5">
+      <h3 class="text-sm font-semibold text-ink mb-3">Riwayat Perubahan Kategori</h3>
+      <div class="space-y-2">
+        <% historiKategori.forEach(h => { %>
+          <div class="flex items-center justify-between text-sm border-b border-line/50 pb-2">
+            <span>
+              <% if (h.kategori_lama) { %>
+                <span class="capitalize text-ink/50"><%= h.kategori_lama.replace('_',' ') %></span> → <span class="capitalize font-medium"><%= h.kategori_baru.replace('_',' ') %></span>
+              <% } else { %>
+                <span class="capitalize font-medium">Dibuat sebagai <%= h.kategori_baru.replace('_',' ') %></span>
+              <% } %>
+            </span>
+            <span class="text-xs text-ink/40"><%= tanggalIndo(h.diubah_pada, true) %> · <%= h.user ? h.user.nama : '-' %></span>
+          </div>
+        <% }) %>
+      </div>
+    </div>
+  <% } %>
+</div>
+
+<script>
+function tambahFieldHp() {
+  const container = document.getElementById('hp-container');
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.name = 'nomor_hp';
+  input.className = 'input-field';
+  input.placeholder = '0812xxxxxxx';
+  container.appendChild(input);
+}
+</script>

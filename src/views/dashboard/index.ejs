@@ -1,0 +1,104 @@
+<% layout('layouts/main') -%>
+
+<div class="space-y-5">
+  <!-- Stat cards -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div class="stat-card">
+      <p class="text-xs uppercase tracking-wide text-ink/50 font-semibold">Saldo Kas</p>
+      <p class="text-2xl font-display font-semibold text-ink"><%= rupiah(saldoKas) %></p>
+    </div>
+    <div class="stat-card">
+      <p class="text-xs uppercase tracking-wide text-ink/50 font-semibold">Omzet Bulan Ini</p>
+      <p class="text-2xl font-display font-semibold text-clay"><%= rupiah(totalOmzetBulanIni) %></p>
+    </div>
+    <div class="stat-card">
+      <p class="text-xs uppercase tracking-wide text-ink/50 font-semibold">Pesanan Hari Ini</p>
+      <p class="text-2xl font-display font-semibold text-ink"><%= pesananHariIni.length %></p>
+    </div>
+    <div class="stat-card">
+      <p class="text-xs uppercase tracking-wide text-ink/50 font-semibold">Total Piutang</p>
+      <p class="text-2xl font-display font-semibold text-warn"><%= rupiah(totalPiutang) %></p>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+    <!-- Stok Fresh & Frozen -->
+    <div class="panel p-4 lg:col-span-1">
+      <h2 class="text-sm font-semibold text-ink mb-3">Stok Produk</h2>
+      <div class="space-y-2">
+        <p class="text-xs font-semibold uppercase text-ink/40 mt-1">Fresh</p>
+        <% if (stokFresh.length === 0) { %>
+          <p class="text-xs text-ink/40">Tidak ada stok fresh.</p>
+        <% } %>
+        <% stokFresh.forEach(s => { %>
+          <div class="flex justify-between items-center text-sm py-1">
+            <span class="flex items-center gap-2"><span class="status-dot bg-clay"></span><%= s.produk ? s.produk.nama_produk : '-' %></span>
+            <span class="font-medium"><%= s.jumlah %></span>
+          </div>
+        <% }) %>
+        <p class="text-xs font-semibold uppercase text-ink/40 mt-3">Frozen</p>
+        <% if (stokFrozen.length === 0) { %>
+          <p class="text-xs text-ink/40">Tidak ada stok frozen.</p>
+        <% } %>
+        <% stokFrozen.forEach(s => { %>
+          <div class="flex justify-between items-center text-sm py-1">
+            <span class="flex items-center gap-2"><span class="status-dot bg-frost"></span><%= s.produk ? s.produk.nama_produk : '-' %></span>
+            <span class="font-medium"><%= s.jumlah %></span>
+          </div>
+        <% }) %>
+      </div>
+      <a href="/stok" class="text-clay text-sm font-medium mt-3 inline-block hover:underline">Lihat detail stok →</a>
+    </div>
+
+    <!-- Pesanan hari ini -->
+    <div class="panel p-4 lg:col-span-2">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-sm font-semibold text-ink">Pesanan Hari Ini</h2>
+        <a href="/penjualan/tambah" class="btn-primary text-xs px-3 py-1.5">+ Penjualan Baru</a>
+      </div>
+      <% if (pesananHariIni.length === 0) { %>
+        <%- include('../partials/empty_state', { message: 'Belum ada pesanan hari ini.' }) %>
+      <% } else { %>
+        <div class="table-wrap">
+<table class="table-erp">
+          <thead><tr><th>Order</th><th>Pelanggan</th><th>Total</th><th>Status</th></tr></thead>
+          <tbody>
+            <% pesananHariIni.forEach(p => { %>
+              <tr class="cursor-pointer" onclick="window.location='/penjualan/<%= p.id %>'">
+                <td class="font-mono text-xs"><%= p.nomor_order %></td>
+                <td><%= p.pelanggan ? p.pelanggan.nama : '-' %></td>
+                <td><%= rupiah(p.total) %></td>
+                <td><%- include('../partials/status_bayar_pill', { status: p.status_bayar }) %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+</div>
+      <% } %>
+    </div>
+  </div>
+
+  <!-- Piutang -->
+  <div class="panel p-4">
+    <h2 class="text-sm font-semibold text-ink mb-3">Daftar Piutang</h2>
+    <% if (piutang.length === 0) { %>
+      <%- include('../partials/empty_state', { message: 'Tidak ada piutang saat ini.' }) %>
+    <% } else { %>
+      <div class="table-wrap">
+<table class="table-erp">
+        <thead><tr><th>Pelanggan</th><th>Total Tagihan</th><th>Sudah Dibayar</th><th>Sisa</th></tr></thead>
+        <tbody>
+          <% piutang.forEach(p => { %>
+            <tr>
+              <td><%= p.pelanggan ? p.pelanggan.nama : '-' %></td>
+              <td><%= rupiah(p.total) %></td>
+              <td><%= rupiah(p.total_dibayar) %></td>
+              <td class="font-medium text-warn"><%= rupiah(p.total - p.total_dibayar) %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+</div>
+    <% } %>
+  </div>
+</div>

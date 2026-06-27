@@ -1,0 +1,48 @@
+<% layout('layouts/main') -%>
+
+<div class="max-w-lg">
+  <div class="panel p-5">
+    <form action="<%= stockPoint ? `/master/stock-point/${stockPoint.id}/edit` : '/master/stock-point/tambah' %>" method="POST" class="space-y-4">
+      <div>
+        <label class="label-field">Pelanggan Terkait (Kategori Stock Point)</label>
+        <select name="pelanggan_id" required class="input-field">
+          <option value="">Pilih pelanggan...</option>
+          <% pelangganList.forEach(p => { %>
+            <option value="<%= p.id %>" <%= stockPoint && stockPoint.pelanggan_id === p.id ? 'selected' : '' %>><%= p.nomor_pelanggan %> · <%= p.nama %></option>
+          <% }) %>
+        </select>
+        <% if (pelangganList.length === 0) { %>
+          <p class="text-xs text-warn mt-1">Belum ada pelanggan berkategori Stock Point. Buat dulu di Master Pelanggan.</p>
+        <% } %>
+      </div>
+      <div>
+        <label class="label-field">Nama Lokasi</label>
+        <input type="text" name="nama_lokasi" required class="input-field" value="<%= stockPoint ? stockPoint.nama_lokasi : '' %>" placeholder="Toko Berkah Jaya">
+      </div>
+      <div>
+        <label class="label-field">Alamat</label>
+        <textarea name="alamat" rows="2" class="input-field"><%= stockPoint && stockPoint.alamat ? stockPoint.alamat : '' %></textarea>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="label-field">Nama PIC</label>
+          <input type="text" name="pic_nama" class="input-field" value="<%= stockPoint ? stockPoint.pic_nama : '' %>">
+        </div>
+        <div>
+          <label class="label-field">No. HP PIC</label>
+          <input type="text" name="pic_hp" class="input-field" value="<%= stockPoint ? stockPoint.pic_hp : '' %>">
+        </div>
+      </div>
+      <% if (stockPoint) { %>
+        <div class="flex items-center gap-2">
+          <input type="checkbox" name="is_aktif" id="is_aktif" <%= stockPoint.is_aktif ? 'checked' : '' %> class="rounded border-line text-clay focus:ring-clay">
+          <label for="is_aktif" class="text-sm text-ink">Stock point aktif</label>
+        </div>
+      <% } %>
+      <div class="flex gap-3 pt-2">
+        <button type="submit" class="btn-primary">Simpan</button>
+        <a href="/master/stock-point" class="btn-secondary">Batal</a>
+      </div>
+    </form>
+  </div>
+</div>

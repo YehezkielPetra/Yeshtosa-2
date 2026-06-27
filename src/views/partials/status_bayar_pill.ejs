@@ -1,0 +1,4 @@
+<% /* params: status ('lunas'|'sebagian'|'belum_bayar') */ %>
+<% const labelMap = { lunas: 'Lunas', sebagian: 'Sebagian', belum_bayar: 'Belum Bayar' }; %>
+<% const classMap = { lunas: 'pill-lunas', sebagian: 'pill-sebagian', belum_bayar: 'pill-belum' }; %>
+<span class="pill <%= classMap[status] || 'pill-belum' %>"><%= labelMap[status] || status %></span>

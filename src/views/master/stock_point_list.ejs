@@ -1,0 +1,29 @@
+<% layout('layouts/main') -%>
+
+<div class="panel">
+  <div class="flex items-center justify-between p-4 border-b border-line">
+    <h2 class="text-sm font-semibold text-ink">Daftar Stock Point</h2>
+    <a href="/master/stock-point/tambah" class="btn-primary text-sm">+ Tambah Stock Point</a>
+  </div>
+  <% if (stockPointList.length === 0) { %>
+    <%- include('../partials/empty_state', { message: 'Belum ada stock point. Pastikan pelanggan berkategori Stock Point sudah dibuat di Master Pelanggan.', actionLabel: '+ Tambah Stock Point', actionUrl: '/master/stock-point/tambah' }) %>
+  <% } else { %>
+    <div class="table-wrap">
+<table class="table-erp">
+      <thead><tr><th>Nama Lokasi</th><th>Pelanggan Terkait</th><th>PIC</th><th>No. HP PIC</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+        <% stockPointList.forEach(s => { %>
+          <tr>
+            <td class="font-medium"><%= s.nama_lokasi %></td>
+            <td class="text-xs"><%= s.pelanggan ? `${s.pelanggan.nomor_pelanggan} · ${s.pelanggan.nama}` : '-' %></td>
+            <td><%= s.pic_nama || '-' %></td>
+            <td><%= s.pic_hp || '-' %></td>
+            <td><span class="pill <%= s.is_aktif ? 'pill-lunas' : 'pill-belum' %>"><%= s.is_aktif ? 'Aktif' : 'Nonaktif' %></span></td>
+            <td><a href="/master/stock-point/<%= s.id %>/edit" class="text-clay text-sm font-medium hover:underline">Edit</a></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+</div>
+  <% } %>
+</div>

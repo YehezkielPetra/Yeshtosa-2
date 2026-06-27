@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> · Yeshtosa ERP</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="h-full">
+  <div class="min-h-screen flex">
+
+    <!-- Backdrop untuk menutup sidebar saat tap di luar (mobile only) -->
+    <div id="sidebar-backdrop" class="fixed inset-0 bg-black/50 z-30 hidden lg:hidden"></div>
+
+    <!-- ===================== SIDEBAR ===================== -->
+    <aside id="sidebar" class="w-64 shrink-0 bg-ink text-cream flex flex-col h-screen fixed lg:sticky top-0 left-0 z-40 overflow-y-auto -translate-x-full lg:translate-x-0 transition-transform duration-200">
+      <div class="px-4 py-5 border-b border-white/10 flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <div class="h-8 w-8 rounded-md bg-clay flex items-center justify-center font-display font-bold text-white text-sm shrink-0">Y</div>
+          <div>
+            <p class="font-display font-semibold text-cream leading-tight">Yeshtosa</p>
+            <p class="text-[11px] text-cream/40 leading-tight">Business System</p>
+          </div>
+        </div>
+        <button id="sidebar-close" class="lg:hidden text-cream/50 hover:text-cream p-1" aria-label="Tutup menu">✕</button>
+      </div>
+
+      <nav class="flex-1 px-2.5 py-2">
+        <a href="/dashboard" class="nav-link <%= currentPath === '/dashboard' ? 'active' : '' %>">
+          Dashboard
+        </a>
+
+        <p class="nav-section-title">Operasional</p>
+        <a href="/penjualan" class="nav-link <%= currentPath.startsWith('/penjualan') ? 'active' : '' %>">Penjualan</a>
+        <a href="/produksi" class="nav-link <%= currentPath.startsWith('/produksi') ? 'active' : '' %>">Produksi</a>
+        <a href="/pembelian" class="nav-link <%= currentPath.startsWith('/pembelian') ? 'active' : '' %>">Pembelian</a>
+        <a href="/pengeluaran" class="nav-link <%= currentPath.startsWith('/pengeluaran') ? 'active' : '' %>">Pengeluaran</a>
+        <a href="/pembayaran" class="nav-link <%= currentPath.startsWith('/pembayaran') ? 'active' : '' %>">Pembayaran</a>
+        <a href="/stok" class="nav-link <%= currentPath.startsWith('/stok') ? 'active' : '' %>">Stok</a>
+
+        <p class="nav-section-title">Master Data</p>
+        <a href="/master/produk" class="nav-link <%= currentPath.startsWith('/master/produk') ? 'active' : '' %>">Produk</a>
+        <a href="/master/bahan-baku" class="nav-link <%= currentPath.startsWith('/master/bahan-baku') ? 'active' : '' %>">Bahan Baku</a>
+        <a href="/master/pelanggan" class="nav-link <%= currentPath.startsWith('/master/pelanggan') ? 'active' : '' %>">Pelanggan</a>
+        <a href="/master/supplier" class="nav-link <%= currentPath.startsWith('/master/supplier') ? 'active' : '' %>">Supplier</a>
+        <a href="/master/stock-point" class="nav-link <%= currentPath.startsWith('/master/stock-point') ? 'active' : '' %>">Stock Point</a>
+
+        <p class="nav-section-title">Laporan</p>
+        <a href="/laporan/analisis/konsumen" class="nav-link <%= currentPath.startsWith('/laporan/analisis/konsumen') ? 'active' : '' %>">Analisis Konsumen</a>
+        <a href="/laporan/analisis/reseller" class="nav-link <%= currentPath.startsWith('/laporan/analisis/reseller') ? 'active' : '' %>">Analisis Reseller</a>
+        <a href="/laporan/analisis/stock-point" class="nav-link <%= currentPath.startsWith('/laporan/analisis/stock-point') ? 'active' : '' %>">Analisis Stock Point</a>
+
+        <% if (currentUser && currentUser.role === 'owner') { %>
+          <p class="nav-section-title">Owner</p>
+          <a href="/owner/dashboard" class="nav-link <%= currentPath.startsWith('/owner') ? 'active' : '' %>">Dashboard Owner</a>
+          <a href="/laporan/tutup-buku" class="nav-link <%= currentPath.startsWith('/laporan/tutup-buku') ? 'active' : '' %>">Tutup Buku</a>
+          <a href="/laporan/approval" class="nav-link <%= currentPath.startsWith('/laporan/approval') ? 'active' : '' %>">Persetujuan</a>
+
+          <p class="nav-section-title">Pengaturan</p>
+          <a href="/pengaturan/users" class="nav-link <%= currentPath.startsWith('/pengaturan') ? 'active' : '' %>">Pengguna</a>
+        <% } %>
+      </nav>
+
+      <div class="px-4 py-3 border-t border-white/10 text-xs text-cream/40">
+        Yeshtosa ERP &copy; <%= new Date().getFullYear() %>
+      </div>
+    </aside>
+
+    <!-- ===================== MAIN ===================== -->
+    <div class="flex-1 flex flex-col min-h-screen w-full lg:w-auto min-w-0">
+      <!-- Topbar -->
+      <header class="h-14 shrink-0 bg-white border-b border-line flex items-center justify-between px-3 sm:px-5 sticky top-0 z-20">
+        <div class="flex items-center gap-3 min-w-0">
+          <button id="sidebar-open" class="lg:hidden text-ink/70 hover:text-ink p-1.5 -ml-1.5 shrink-0" aria-label="Buka menu">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          </button>
+          <h1 class="text-sm sm:text-base font-semibold text-ink truncate"><%= title %></h1>
+        </div>
+        <div class="flex items-center gap-2 sm:gap-4 shrink-0">
+          <% if (currentUser) { %>
+            <div class="text-right leading-tight hidden sm:block">
+              <p class="text-sm font-medium text-ink"><%= currentUser.nama %></p>
+              <p class="text-xs text-ink/50 capitalize"><%= currentUser.role %><% if (currentUser.cabangNama) { %> · <%= currentUser.cabangNama %><% } %></p>
+            </div>
+            <form action="/logout" method="POST">
+              <button type="submit" class="btn-secondary text-xs px-2.5 sm:px-3 py-1.5">Keluar</button>
+            </form>
+          <% } %>
+        </div>
+      </header>
+
+      <!-- Flash messages -->
+      <% if (flashSuccess && flashSuccess.length) { %>
+        <div class="mx-3 sm:mx-5 mt-4 rounded-md bg-sage/10 border border-sage/30 text-sage-dark px-4 py-2.5 text-sm">
+          <%= flashSuccess[0] %>
+        </div>
+      <% } %>
+      <% if (flashError && flashError.length) { %>
+        <div class="mx-3 sm:mx-5 mt-4 rounded-md bg-warn/10 border border-warn/30 text-warn px-4 py-2.5 text-sm">
+          <%= flashError[0] %>
+        </div>
+      <% } %>
+
+      <!-- Page content -->
+      <main class="flex-1 p-3 sm:p-5 min-w-0 overflow-x-auto">
+        <%- body %>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    (function() {
+      const sidebar = document.getElementById('sidebar');
+      const backdrop = document.getElementById('sidebar-backdrop');
+      const openBtn = document.getElementById('sidebar-open');
+      const closeBtn = document.getElementById('sidebar-close');
+
+      function openSidebar() {
+        sidebar.classList.remove('-translate-x-full');
+        backdrop.classList.remove('hidden');
+      }
+      function closeSidebar() {
+        sidebar.classList.add('-translate-x-full');
+        backdrop.classList.add('hidden');
+      }
+
+      openBtn && openBtn.addEventListener('click', openSidebar);
+      closeBtn && closeBtn.addEventListener('click', closeSidebar);
+      backdrop && backdrop.addEventListener('click', closeSidebar);
+
+      // Tutup sidebar otomatis saat link diklik (mobile)
+      sidebar.querySelectorAll('a').forEach(link => {
+        link.addEventListener('click', () => {
+          if (window.innerWidth < 1024) closeSidebar();
+        });
+      });
+    })();
+  </script>
+</body>
+</html>

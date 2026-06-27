@@ -1,0 +1,56 @@
+<% layout('layouts/main') -%>
+
+<div class="panel">
+  <div class="flex items-center justify-between p-4 border-b border-line">
+    <h2 class="text-sm font-semibold text-ink">Persetujuan Perubahan Transaksi</h2>
+    <form method="GET" class="flex items-center gap-2">
+      <select name="status" class="input-field text-sm" onchange="this.form.submit()">
+        <option value="pending" <%= filterStatus === 'pending' ? 'selected' : '' %>>Pending</option>
+        <option value="approved" <%= filterStatus === 'approved' ? 'selected' : '' %>>Disetujui</option>
+        <option value="rejected" <%= filterStatus === 'rejected' ? 'selected' : '' %>>Ditolak</option>
+      </select>
+    </form>
+  </div>
+  <% if (approvalList.length === 0) { %>
+    <%- include('../partials/empty_state', { message: 'Tidak ada pengajuan dengan status ini.' }) %>
+  <% } else { %>
+    <div class="table-wrap">
+<table class="table-erp">
+      <thead><tr><th>Tabel</th><th>Jenis</th><th>Alasan</th><th>Diajukan Oleh</th><th>Tanggal</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+        <% approvalList.forEach(a => { %>
+          <tr>
+            <td class="font-mono text-xs"><%= a.tabel_target %></td>
+            <td class="capitalize"><%= a.jenis_perubahan %></td>
+            <td class="text-xs"><%= a.alasan || '-' %></td>
+            <td><%= a.diajukan ? a.diajukan.nama : '-' %></td>
+            <td class="text-xs"><%= tanggalIndo(a.diajukan_pada, true) %></td>
+            <td><span class="pill pill-<%= a.status %> capitalize"><%= a.status %></span></td>
+            <td>
+              <% if (a.status === 'pending') { %>
+                <div class="flex gap-2">
+                  <form action="/laporan/approval/<%= a.id %>/setuju" method="POST">
+                    <button type="submit" class="text-sage-dark text-xs font-medium hover:underline">Setujui</button>
+                  </form>
+                  <form action="/laporan/approval/<%= a.id %>/tolak" method="POST" onsubmit="return confirmTolak(this)">
+                    <input type="hidden" name="catatan_reviewer" class="catatan-input">
+                    <button type="submit" class="text-warn text-xs font-medium hover:underline">Tolak</button>
+                  </form>
+                </div>
+              <% } %>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+</div>
+  <% } %>
+</div>
+
+<script>
+function confirmTolak(form) {
+  const alasan = prompt('Catatan penolakan (opsional):');
+  form.querySelector('.catatan-input').value = alasan || '';
+  return true;
+}
+</script>

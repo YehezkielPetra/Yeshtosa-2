@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Error · Yeshtosa ERP</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="h-screen bg-cream flex items-center justify-center">
+  <div class="text-center max-w-md px-4">
+    <p class="font-display text-6xl font-semibold text-warn mb-2">500</p>
+    <p class="text-ink/60 mb-1">Terjadi kesalahan pada server.</p>
+    <% if (typeof errorMessage !== 'undefined' && errorMessage) { %>
+      <p class="text-ink/40 text-sm mb-5 font-mono"><%= errorMessage %></p>
+    <% } %>
+    <a href="/dashboard" class="btn-primary inline-flex">Kembali ke Dashboard</a>
+  </div>
+</body>
+</html>

@@ -1,0 +1,29 @@
+<% layout('layouts/main') -%>
+
+<div class="panel">
+  <div class="flex items-center justify-between p-4 border-b border-line">
+    <h2 class="text-sm font-semibold text-ink">Daftar Supplier</h2>
+    <a href="/master/supplier/tambah" class="btn-primary text-sm">+ Tambah Supplier</a>
+  </div>
+  <% if (supplierList.length === 0) { %>
+    <%- include('../partials/empty_state', { message: 'Belum ada supplier.', actionLabel: '+ Tambah Supplier', actionUrl: '/master/supplier/tambah' }) %>
+  <% } else { %>
+    <div class="table-wrap">
+<table class="table-erp">
+      <thead><tr><th>No. Supplier</th><th>Nama</th><th>No. HP</th><th>Barang Utama</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+        <% supplierList.forEach(s => { %>
+          <tr>
+            <td class="font-mono text-xs"><%= s.nomor_supplier %></td>
+            <td class="font-medium"><%= s.nama %> <% if (s.is_supplier_utama) { %><span class="pill pill-lunas ml-1">Utama</span><% } %></td>
+            <td><%= s.nomor_hp || '-' %></td>
+            <td><%= s.barang_utama || '-' %></td>
+            <td><span class="pill <%= s.is_aktif ? 'pill-lunas' : 'pill-belum' %>"><%= s.is_aktif ? 'Aktif' : 'Nonaktif' %></span></td>
+            <td><a href="/master/supplier/<%= s.id %>/edit" class="text-clay text-sm font-medium hover:underline">Edit</a></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+</div>
+  <% } %>
+</div>

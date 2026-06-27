@@ -1,0 +1,230 @@
+<% layout('layouts/main') -%>
+
+<div class="max-w-3xl">
+  <div class="panel p-5">
+    <form action="/penjualan/tambah" method="POST" class="space-y-5" id="form-penjualan">
+      <input type="hidden" name="cabang_id" value="<%= cabangId %>">
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="label-field">Pelanggan</label>
+          <select name="pelanggan_id" id="pelanggan_id" required class="input-field">
+            <option value="">Pilih pelanggan...</option>
+            <% pelangganList.forEach(p => { %>
+              <option value="<%= p.id %>" data-kategori="<%= p.kategori %>"><%= p.nomor_pelanggan %> · <%= p.nama %> (<%= p.kategori.replace('_',' ') %>)</option>
+            <% }) %>
+          </select>
+        </div>
+        <div>
+          <label class="label-field">Status Produk</label>
+          <select name="status_produk" id="status_produk" class="input-field">
+            <option value="fresh">Fresh</option>
+            <option value="frozen">Frozen</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Item produk -->
+      <div>
+        <label class="label-field">Item Produk</label>
+        <div id="item-container" class="space-y-2"></div>
+        <button type="button" onclick="tambahItem()" class="text-clay text-xs font-medium mt-2 hover:underline">+ Tambah produk</button>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="label-field">Metode</label>
+          <select name="metode_ambil_kirim" id="metode_ambil_kirim" class="input-field">
+            <option value="diambil">Diambil</option>
+            <option value="dikirim">Dikirim</option>
+          </select>
+        </div>
+        <div>
+          <label class="label-field">Promo (opsional)</label>
+          <select name="promo_id" id="promo_id" class="input-field">
+            <option value="">Tanpa promo</option>
+            <% promoList.forEach(p => { %>
+              <option value="<%= p.id %>" data-tipe="<%= p.tipe %>" data-nilai="<%= p.nilai %>"><%= p.nama_promo %> (<%= p.tipe === 'persen' ? p.nilai + '%' : rupiah(p.nilai) %>)</option>
+            <% }) %>
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <label class="label-field">Diskon Tambahan (Rp, opsional)</label>
+        <input type="number" step="0.01" name="diskon_nominal" id="diskon_nominal" class="input-field" value="0">
+      </div>
+
+      <!-- Ringkasan otomatis -->
+      <div class="bg-cream rounded-md p-4 space-y-1.5 text-sm border border-line">
+        <div class="flex justify-between"><span class="text-ink/60">Subtotal</span><span id="display-subtotal" class="font-medium">Rp0</span></div>
+        <div class="flex justify-between"><span class="text-ink/60">Diskon &amp; Promo</span><span id="display-diskon" class="font-medium text-warn">- Rp0</span></div>
+        <div class="flex justify-between pt-1.5 border-t border-line"><span class="font-semibold">Total</span><span id="display-total" class="font-display font-semibold text-clay text-lg">Rp0</span></div>
+      </div>
+
+      <hr class="border-line">
+
+      <!-- Pembayaran -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="label-field">Jumlah Dibayar Sekarang (Rp)</label>
+          <input type="number" step="0.01" name="total_dibayar" id="total_dibayar" class="input-field" value="0">
+        </div>
+        <div>
+          <label class="label-field">Status Bayar</label>
+          <input type="text" id="display-status-bayar" class="input-field bg-line/30" readonly value="Belum Bayar">
+          <input type="hidden" name="status_bayar" id="status_bayar" value="belum_bayar">
+        </div>
+      </div>
+
+      <!-- Ongkir -->
+      <div class="border border-line rounded-md p-4 space-y-3">
+        <p class="text-xs font-semibold uppercase text-ink/50">Ongkir <span class="text-ink/30">(dipisah dari omzet)</span></p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="label-field">Status Ongkir</label>
+            <select name="status_ongkir" class="input-field">
+              <option value="belum_diketahui">Belum Diketahui</option>
+              <option value="estimasi">Estimasi</option>
+              <option value="aktual">Aktual</option>
+              <option value="sudah_dibayar">Sudah Dibayar</option>
+            </select>
+          </div>
+          <div>
+            <label class="label-field">Dibayar Oleh</label>
+            <select name="ongkir_dibayar_oleh" class="input-field">
+              <option value="pelanggan">Pelanggan</option>
+              <option value="yeshtosa">Yeshtosa</option>
+            </select>
+          </div>
+          <div>
+            <label class="label-field">Ongkir Estimasi (Rp)</label>
+            <input type="number" step="0.01" name="ongkir_estimasi" class="input-field" value="0">
+          </div>
+          <div>
+            <label class="label-field">Ongkir Aktual (Rp)</label>
+            <input type="number" step="0.01" name="ongkir_aktual" class="input-field" value="0">
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <label class="label-field">Catatan</label>
+        <textarea name="catatan" rows="2" class="input-field"></textarea>
+      </div>
+
+      <div class="flex gap-3 pt-2">
+        <button type="submit" class="btn-primary">Simpan Penjualan</button>
+        <a href="/penjualan" class="btn-secondary">Batal</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  const PRODUK_LIST = <%- JSON.stringify(produkList) %>;
+  const STOK_LIST = <%- JSON.stringify(stokList) %>;
+  let itemCount = 0;
+
+  function stokTersedia(produkId, status) {
+    const s = STOK_LIST.find(s => s.produk_id === produkId && s.status === status);
+    return s ? Number(s.jumlah) : 0;
+  }
+
+  function produkOptionsHtml() {
+    return '<option value="">Pilih produk...</option>' + PRODUK_LIST.map(p => `<option value="${p.id}">${p.nama_produk}</option>`).join('');
+  }
+
+  function tambahItem() {
+    itemCount++;
+    const container = document.getElementById('item-container');
+    const div = document.createElement('div');
+    div.className = 'flex gap-2 items-center item-row';
+    div.dataset.idx = itemCount;
+    div.innerHTML = `
+      <select name="produk_id" class="input-field flex-1 produk-select" onchange="updateRingkasan()">${produkOptionsHtml()}</select>
+      <input type="number" name="jumlah" min="1" value="1" class="input-field w-24 jumlah-input" onchange="updateRingkasan()">
+      <span class="text-xs text-ink/40 w-20 stok-info">stok: -</span>
+      <button type="button" onclick="hapusItem(this)" class="text-warn text-sm px-2">✕</button>
+    `;
+    container.appendChild(div);
+  }
+
+  function hapusItem(btn) {
+    btn.closest('.item-row').remove();
+    updateRingkasan();
+  }
+
+  function hargaUntukKategori(produk, kategori) {
+    if (kategori === 'reseller' && produk.harga_jual_reseller) return Number(produk.harga_jual_reseller);
+    if (kategori === 'stock_point' && produk.harga_jual_stock_point) return Number(produk.harga_jual_stock_point);
+    return Number(produk.harga_jual_default);
+  }
+
+  function updateRingkasan() {
+    const pelangganSelect = document.getElementById('pelanggan_id');
+    const kategori = pelangganSelect.selectedOptions[0] ? pelangganSelect.selectedOptions[0].dataset.kategori : 'konsumen';
+    const statusProduk = document.getElementById('status_produk').value;
+
+    let subtotal = 0;
+    document.querySelectorAll('.item-row').forEach(row => {
+      const produkId = row.querySelector('.produk-select').value;
+      const jumlah = Number(row.querySelector('.jumlah-input').value) || 0;
+      const stokInfo = row.querySelector('.stok-info');
+      const produk = PRODUK_LIST.find(p => p.id === produkId);
+      if (produk) {
+        const harga = hargaUntukKategori(produk, kategori);
+        subtotal += harga * jumlah;
+        const stok = stokTersedia(produkId, statusProduk);
+        stokInfo.textContent = `stok: ${stok}`;
+        stokInfo.classList.toggle('text-warn', jumlah > stok);
+      } else {
+        stokInfo.textContent = 'stok: -';
+      }
+    });
+
+    // Diskon dari promo
+    let diskon = Number(document.getElementById('diskon_nominal').value) || 0;
+    const promoSelect = document.getElementById('promo_id');
+    if (promoSelect.value) {
+      const opt = promoSelect.selectedOptions[0];
+      const tipe = opt.dataset.tipe;
+      const nilai = Number(opt.dataset.nilai);
+      diskon += tipe === 'persen' ? (subtotal * nilai / 100) : nilai;
+    }
+
+    const total = Math.max(0, subtotal - diskon);
+
+    document.getElementById('display-subtotal').textContent = formatRupiah(subtotal);
+    document.getElementById('display-diskon').textContent = '- ' + formatRupiah(diskon);
+    document.getElementById('display-total').textContent = formatRupiah(total);
+
+    updateStatusBayar(total);
+  }
+
+  function updateStatusBayar(total) {
+    const dibayar = Number(document.getElementById('total_dibayar').value) || 0;
+    let status = 'belum_bayar';
+    let label = 'Belum Bayar';
+    if (dibayar >= total && total > 0) { status = 'lunas'; label = 'Lunas'; }
+    else if (dibayar > 0 && dibayar < total) { status = 'sebagian'; label = 'Sebagian'; }
+    document.getElementById('status_bayar').value = status;
+    document.getElementById('display-status-bayar').value = label;
+  }
+
+  function formatRupiah(n) {
+    return 'Rp' + Math.round(n).toLocaleString('id-ID');
+  }
+
+  document.getElementById('pelanggan_id').addEventListener('change', updateRingkasan);
+  document.getElementById('status_produk').addEventListener('change', updateRingkasan);
+  document.getElementById('promo_id').addEventListener('change', updateRingkasan);
+  document.getElementById('diskon_nominal').addEventListener('input', updateRingkasan);
+  document.getElementById('total_dibayar').addEventListener('input', () => {
+    const totalText = document.getElementById('display-total').textContent.replace(/[^0-9]/g, '');
+    updateStatusBayar(Number(totalText) || 0);
+  });
+
+  // Mulai dengan 1 item
+  tambahItem();
+</script>

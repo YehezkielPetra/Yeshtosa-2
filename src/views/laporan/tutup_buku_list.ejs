@@ -1,0 +1,31 @@
+<% layout('layouts/main') -%>
+
+<div class="panel">
+  <div class="flex items-center justify-between p-4 border-b border-line">
+    <h2 class="text-sm font-semibold text-ink">Riwayat Tutup Buku</h2>
+    <a href="/laporan/tutup-buku/baru" class="btn-primary text-sm">+ Tutup Buku Baru</a>
+  </div>
+  <% if (tutupBukuList.length === 0) { %>
+    <%- include('../partials/empty_state', { message: 'Belum ada riwayat tutup buku.', actionLabel: '+ Tutup Buku Baru', actionUrl: '/laporan/tutup-buku/baru' }) %>
+  <% } else { %>
+    <div class="table-wrap">
+<table class="table-erp">
+      <thead><tr><th>Periode</th><th>Cabang</th><th>Omzet</th><th>Laba Bersih</th><th>Cadangan Pajak</th><th>Cadangan Usaha</th><th>Laba Siap Distribusi</th><th>Status</th></tr></thead>
+      <tbody>
+        <% tutupBukuList.forEach(t => { %>
+          <tr>
+            <td><%= t.periode_bulan %>/<%= t.periode_tahun %></td>
+            <td class="text-xs text-ink/50"><%= t.cabang ? t.cabang.nama : '-' %></td>
+            <td><%= rupiah(t.total_omzet) %></td>
+            <td class="font-medium"><%= rupiah(t.laba_bersih) %></td>
+            <td class="text-xs"><%= rupiah(t.nominal_cadangan_pajak) %></td>
+            <td class="text-xs"><%= rupiah(t.nominal_cadangan_usaha) %></td>
+            <td class="font-medium text-sage-dark"><%= rupiah(t.laba_siap_distribusi) %></td>
+            <td><span class="pill <%= t.status === 'final' ? 'pill-lunas' : 'pill-pending' %> capitalize"><%= t.status %></span></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+</div>
+  <% } %>
+</div>

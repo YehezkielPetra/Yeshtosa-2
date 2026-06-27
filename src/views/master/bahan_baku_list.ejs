@@ -1,0 +1,29 @@
+<% layout('layouts/main') -%>
+
+<div class="panel">
+  <div class="flex items-center justify-between p-4 border-b border-line">
+    <h2 class="text-sm font-semibold text-ink">Daftar Bahan Baku</h2>
+    <a href="/master/bahan-baku/tambah" class="btn-primary text-sm">+ Tambah Bahan Baku</a>
+  </div>
+  <% if (bahanList.length === 0) { %>
+    <%- include('../partials/empty_state', { message: 'Belum ada bahan baku.', actionLabel: '+ Tambah Bahan Baku', actionUrl: '/master/bahan-baku/tambah' }) %>
+  <% } else { %>
+    <div class="table-wrap">
+<table class="table-erp">
+      <thead><tr><th>Kode</th><th>Nama Bahan</th><th>Satuan</th><th>Stok Minimum</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+        <% bahanList.forEach(b => { %>
+          <tr>
+            <td class="font-mono text-xs"><%= b.kode_bahan %></td>
+            <td class="font-medium"><%= b.nama_bahan %></td>
+            <td><%= b.satuan %></td>
+            <td><%= b.stok_minimum %></td>
+            <td><span class="pill <%= b.is_aktif ? 'pill-lunas' : 'pill-belum' %>"><%= b.is_aktif ? 'Aktif' : 'Nonaktif' %></span></td>
+            <td><a href="/master/bahan-baku/<%= b.id %>/edit" class="text-clay text-sm font-medium hover:underline">Edit</a></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+</div>
+  <% } %>
+</div>

@@ -1,0 +1,35 @@
+<% layout('layouts/main') -%>
+
+<div class="panel">
+  <div class="flex items-center justify-between p-4 border-b border-line">
+    <h2 class="text-sm font-semibold text-ink">Daftar Produksi</h2>
+    <div class="flex gap-2">
+      <a href="/produksi/konversi-frozen" class="btn-secondary text-sm">Konversi ke Frozen</a>
+      <a href="/produksi/tambah" class="btn-primary text-sm">+ Catat Produksi</a>
+    </div>
+  </div>
+  <% if (produksiList.length === 0) { %>
+    <%- include('../partials/empty_state', { message: 'Belum ada catatan produksi.', actionLabel: '+ Catat Produksi', actionUrl: '/produksi/tambah' }) %>
+  <% } else { %>
+    <div class="table-wrap">
+<table class="table-erp">
+      <thead><tr><th>No. Produksi</th><th>Tanggal</th><th>Cabang</th><th>Hasil</th><th>Item</th></tr></thead>
+      <tbody>
+        <% produksiList.forEach(p => { %>
+          <tr>
+            <td class="font-mono text-xs"><%= p.nomor_produksi %></td>
+            <td class="text-xs"><%= tanggalIndo(p.tanggal_produksi) %></td>
+            <td class="text-xs text-ink/50"><%= p.cabang ? p.cabang.nama : '-' %></td>
+            <td><%- include('../partials/status_produk_pill', { status: p.status_hasil }) %></td>
+            <td class="text-xs">
+              <% (p.produksi_detail || []).forEach(d => { %>
+                <span class="inline-block mr-2"><%= d.produk ? d.produk.nama_produk : '-' %> ×<%= d.jumlah %></span>
+              <% }) %>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+</div>
+  <% } %>
+</div>

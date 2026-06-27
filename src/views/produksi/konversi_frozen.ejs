@@ -1,0 +1,53 @@
+<% layout('layouts/main') -%>
+
+<div class="max-w-lg space-y-5">
+  <div class="panel p-5">
+    <h2 class="text-sm font-semibold text-ink mb-1">Konversi Fresh ke Frozen</h2>
+    <p class="text-xs text-ink/40 mb-4">Fresh yang tidak habis terjual dapat dipindahkan menjadi Frozen. Sistem akan otomatis mencatat batch dan tanggal kedaluwarsa.</p>
+
+    <% if (stokFresh.length === 0) { %>
+      <%- include('../partials/empty_state', { message: 'Tidak ada stok Fresh yang tersedia untuk dikonversi.' }) %>
+    <% } else { %>
+      <form action="/produksi/konversi-frozen" method="POST" class="space-y-4" id="form-konversi">
+        <div>
+          <label class="label-field">Produk (Fresh)</label>
+          <select name="produk_id" id="produk_id" required class="input-field">
+            <option value="">Pilih produk...</option>
+            <% stokFresh.forEach(s => { %>
+              <option value="<%= s.produk_id %>"
+                data-jumlah="<%= s.jumlah %>"
+                data-umur="<%= s.produk ? s.produk.umur_simpan_frozen_hari : 30 %>">
+                <%= s.produk ? s.produk.nama_produk : '-' %> (stok: <%= s.jumlah %>)
+              </option>
+            <% }) %>
+          </select>
+        </div>
+        <div>
+          <label class="label-field">Jumlah yang Dikonversi</label>
+          <input type="number" name="jumlah" id="jumlah" min="1" required class="input-field">
+          <p class="text-xs text-ink/40 mt-1">Stok tersedia: <span id="stok-tersedia">-</span></p>
+        </div>
+        <div>
+          <label class="label-field">Umur Simpan Frozen (hari)</label>
+          <input type="number" name="umur_simpan_frozen_hari" id="umur_simpan_frozen_hari" class="input-field" value="30">
+        </div>
+        <div class="flex gap-3 pt-2">
+          <button type="submit" class="btn-primary">Konversi Sekarang</button>
+          <a href="/produksi" class="btn-secondary">Batal</a>
+        </div>
+      </form>
+
+      <script>
+        const select = document.getElementById('produk_id');
+        select.addEventListener('change', () => {
+          const opt = select.selectedOptions[0];
+          if (opt && opt.dataset.jumlah) {
+            document.getElementById('stok-tersedia').textContent = opt.dataset.jumlah;
+            document.getElementById('jumlah').max = opt.dataset.jumlah;
+            document.getElementById('umur_simpan_frozen_hari').value = opt.dataset.umur;
+          }
+        });
+      </script>
+    <% } %>
+  </div>
+</div>

@@ -1,0 +1,43 @@
+<% layout('layouts/main') -%>
+
+<div class="panel">
+  <div class="flex items-center justify-between p-4 border-b border-line gap-3 flex-wrap">
+    <h2 class="text-sm font-semibold text-ink">Daftar Penjualan</h2>
+    <div class="flex items-center gap-2">
+      <form method="GET" class="flex items-center gap-2">
+        <input type="date" name="tanggal" value="<%= filterTanggal %>" class="input-field text-sm">
+        <select name="status_bayar" class="input-field text-sm" onchange="this.form.submit()">
+          <option value="">Semua Status Bayar</option>
+          <option value="lunas" <%= filterStatusBayar === 'lunas' ? 'selected' : '' %>>Lunas</option>
+          <option value="sebagian" <%= filterStatusBayar === 'sebagian' ? 'selected' : '' %>>Sebagian</option>
+          <option value="belum_bayar" <%= filterStatusBayar === 'belum_bayar' ? 'selected' : '' %>>Belum Bayar</option>
+        </select>
+        <button type="submit" class="btn-secondary text-xs px-3 py-1.5">Filter</button>
+      </form>
+      <a href="/penjualan/tambah" class="btn-primary text-sm">+ Penjualan Baru</a>
+    </div>
+  </div>
+  <% if (penjualanList.length === 0) { %>
+    <%- include('../partials/empty_state', { message: 'Belum ada transaksi penjualan.', actionLabel: '+ Penjualan Baru', actionUrl: '/penjualan/tambah' }) %>
+  <% } else { %>
+    <div class="table-wrap">
+<table class="table-erp">
+      <thead><tr><th>No. Order</th><th>Tanggal</th><th>Pelanggan</th><th>Cabang</th><th>Produk</th><th>Total</th><th>Bayar</th><th>Selesai</th></tr></thead>
+      <tbody>
+        <% penjualanList.forEach(p => { %>
+          <tr class="cursor-pointer" onclick="window.location='/penjualan/<%= p.id %>'">
+            <td class="font-mono text-xs"><%= p.nomor_order %></td>
+            <td class="text-xs"><%= tanggalIndo(p.tanggal_order) %></td>
+            <td><%= p.pelanggan ? p.pelanggan.nama : '-' %></td>
+            <td class="text-xs text-ink/50"><%= p.cabang ? p.cabang.nama : '-' %></td>
+            <td><%- include('../partials/status_produk_pill', { status: p.status_produk }) %></td>
+            <td class="font-medium"><%= rupiah(p.total) %></td>
+            <td><%- include('../partials/status_bayar_pill', { status: p.status_bayar }) %></td>
+            <td><%= p.is_selesai ? '✅' : '⏳' %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+</div>
+  <% } %>
+</div>

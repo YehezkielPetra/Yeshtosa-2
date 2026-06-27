@@ -1,0 +1,112 @@
+<% layout('layouts/main') -%>
+
+<div class="max-w-3xl space-y-5">
+  <div class="panel p-5">
+    <div class="flex items-start justify-between mb-4">
+      <div>
+        <p class="font-mono text-xs text-ink/40">No. Order</p>
+        <h2 class="font-display text-xl font-semibold text-ink"><%= penjualan.nomor_order %></h2>
+      </div>
+      <div class="flex gap-2">
+        <%- include('../partials/status_produk_pill', { status: penjualan.status_produk }) %>
+        <%- include('../partials/status_bayar_pill', { status: penjualan.status_bayar }) %>
+        <span class="pill <%= penjualan.is_selesai ? 'pill-lunas' : 'pill-pending' %>"><%= penjualan.is_selesai ? 'Selesai' : 'Berjalan' %></span>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm mb-5">
+      <div>
+        <p class="text-ink/40 text-xs">Pelanggan</p>
+        <p class="font-medium"><%= penjualan.pelanggan ? penjualan.pelanggan.nama : '-' %> <span class="text-ink/40 capitalize">(<%= penjualan.pelanggan ? penjualan.pelanggan.kategori.replace('_',' ') : '-' %>)</span></p>
+      </div>
+      <div>
+        <p class="text-ink/40 text-xs">Cabang</p>
+        <p class="font-medium"><%= penjualan.cabang ? penjualan.cabang.nama : '-' %></p>
+      </div>
+      <div>
+        <p class="text-ink/40 text-xs">Tanggal Order</p>
+        <p class="font-medium"><%= tanggalIndo(penjualan.tanggal_order, true) %></p>
+      </div>
+      <div>
+        <p class="text-ink/40 text-xs">Metode</p>
+        <p class="font-medium capitalize"><%= penjualan.metode_ambil_kirim %></p>
+      </div>
+    </div>
+
+    <div class="table-wrap mb-4">
+    <table class="table-erp">
+      <thead><tr><th>Produk</th><th>Jumlah</th><th>Harga Satuan</th><th>Subtotal</th></tr></thead>
+      <tbody>
+        <% (penjualan.penjualan_detail || []).forEach(d => { %>
+          <tr>
+            <td><%= d.produk ? d.produk.nama_produk : '-' %></td>
+            <td><%= d.jumlah %> <%= d.produk ? d.produk.satuan : '' %></td>
+            <td><%= rupiah(d.harga_satuan) %></td>
+            <td><%= rupiah(d.subtotal) %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+    </div>
+
+    <div class="bg-cream rounded-md p-4 space-y-1.5 text-sm border border-line max-w-xs ml-auto">
+      <div class="flex justify-between"><span class="text-ink/60">Subtotal</span><span><%= rupiah(penjualan.subtotal) %></span></div>
+      <div class="flex justify-between"><span class="text-ink/60">Diskon</span><span class="text-warn">- <%= rupiah(penjualan.diskon_nominal) %></span></div>
+      <div class="flex justify-between pt-1.5 border-t border-line"><span class="font-semibold">Total</span><span class="font-display font-semibold text-clay text-lg"><%= rupiah(penjualan.total) %></span></div>
+      <div class="flex justify-between text-xs"><span class="text-ink/50">Sudah dibayar</span><span><%= rupiah(penjualan.total_dibayar) %></span></div>
+      <div class="flex justify-between text-xs"><span class="text-ink/50">Sisa</span><span class="font-medium"><%= rupiah(penjualan.total - penjualan.total_dibayar) %></span></div>
+    </div>
+
+    <div class="mt-5 border border-line rounded-md p-4">
+      <p class="text-xs font-semibold uppercase text-ink/50 mb-2">Ongkir <span class="text-ink/30">(terpisah dari omzet)</span></p>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+        <div><p class="text-ink/40 text-xs">Status</p><p class="font-medium capitalize"><%= penjualan.status_ongkir.replace('_',' ') %></p></div>
+        <div><p class="text-ink/40 text-xs">Estimasi</p><p class="font-medium"><%= rupiah(penjualan.ongkir_estimasi) %></p></div>
+        <div><p class="text-ink/40 text-xs">Aktual</p><p class="font-medium"><%= rupiah(penjualan.ongkir_aktual) %></p></div>
+      </div>
+    </div>
+
+    <% if (penjualan.catatan) { %>
+      <div class="mt-4 text-sm">
+        <p class="text-ink/40 text-xs">Catatan</p>
+        <p><%= penjualan.catatan %></p>
+      </div>
+    <% } %>
+
+    <div class="flex gap-3 mt-5">
+      <% if (penjualan.status_bayar !== 'lunas') { %>
+        <a href="/pembayaran/tambah?penjualan_id=<%= penjualan.id %>" class="btn-primary text-sm">+ Catat Pembayaran</a>
+      <% } %>
+      <% if (!penjualan.is_selesai) { %>
+        <form action="/penjualan/<%= penjualan.id %>/selesai" method="POST">
+          <button type="submit" class="btn-secondary text-sm">Tandai Selesai</button>
+        </form>
+      <% } %>
+    </div>
+  </div>
+
+  <!-- Riwayat pembayaran -->
+  <div class="panel p-5">
+    <h3 class="text-sm font-semibold text-ink mb-3">Riwayat Pembayaran</h3>
+    <% if (pembayaranList.length === 0) { %>
+      <%- include('../partials/empty_state', { message: 'Belum ada pembayaran tercatat.' }) %>
+    <% } else { %>
+      <div class="table-wrap">
+<table class="table-erp">
+        <thead><tr><th>No. Pembayaran</th><th>Tanggal</th><th>Jumlah</th><th>Metode</th><th>Dicatat Oleh</th></tr></thead>
+        <tbody>
+          <% pembayaranList.forEach(p => { %>
+            <tr>
+              <td class="font-mono text-xs"><%= p.nomor_pembayaran %></td>
+              <td class="text-xs"><%= tanggalIndo(p.tanggal_bayar, true) %></td>
+              <td class="font-medium"><%= rupiah(p.jumlah_bayar) %></td>
+              <td class="capitalize"><%= p.metode %></td>
+              <td><%= p.user ? p.user.nama : '-' %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+</div>
+    <% } %>
+  </div>
+</div>

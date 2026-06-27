@@ -1,0 +1,28 @@
+<% layout('layouts/main') -%>
+
+<div class="panel">
+  <div class="flex items-center justify-between p-4 border-b border-line">
+    <h2 class="text-sm font-semibold text-ink">Daftar Pembayaran</h2>
+    <a href="/pembayaran/tambah" class="btn-primary text-sm">+ Catat Pembayaran</a>
+  </div>
+  <% if (pembayaranList.length === 0) { %>
+    <%- include('../partials/empty_state', { message: 'Belum ada pembayaran tercatat.', actionLabel: '+ Catat Pembayaran', actionUrl: '/pembayaran/tambah' }) %>
+  <% } else { %>
+    <div class="table-wrap">
+<table class="table-erp">
+      <thead><tr><th>No. Pembayaran</th><th>Tanggal</th><th>Order</th><th>Pelanggan</th><th>Jumlah</th></tr></thead>
+      <tbody>
+        <% pembayaranList.forEach(p => { %>
+          <tr>
+            <td class="font-mono text-xs"><%= p.nomor_pembayaran %></td>
+            <td class="text-xs"><%= tanggalIndo(p.tanggal_bayar, true) %></td>
+            <td class="font-mono text-xs"><a href="/penjualan/<%= p.penjualan_id %>" class="text-clay hover:underline"><%= p.penjualan ? p.penjualan.nomor_order : '-' %></a></td>
+            <td><%= p.penjualan && p.penjualan.pelanggan ? p.penjualan.pelanggan.nama : '-' %></td>
+            <td class="font-medium"><%= rupiah(p.jumlah_bayar) %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+</div>
+  <% } %>
+</div>

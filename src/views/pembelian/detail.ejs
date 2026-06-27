@@ -1,0 +1,48 @@
+<% layout('layouts/main') -%>
+
+<div class="max-w-2xl">
+  <div class="panel p-5">
+    <div class="flex items-start justify-between mb-4">
+      <div>
+        <p class="font-mono text-xs text-ink/40">No. Pembelian</p>
+        <h2 class="font-display text-xl font-semibold text-ink"><%= pembelian.nomor_pembelian %></h2>
+      </div>
+      <%- include('../partials/status_bayar_pill', { status: pembelian.status_bayar }) %>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm mb-5">
+      <div><p class="text-ink/40 text-xs">Supplier</p><p class="font-medium"><%= pembelian.supplier ? pembelian.supplier.nama : '-' %></p></div>
+      <div><p class="text-ink/40 text-xs">Cabang</p><p class="font-medium"><%= pembelian.cabang ? pembelian.cabang.nama : '-' %></p></div>
+      <div><p class="text-ink/40 text-xs">Tanggal</p><p class="font-medium"><%= tanggalIndo(pembelian.tanggal_beli, true) %></p></div>
+    </div>
+
+    <div class="table-wrap mb-4">
+    <table class="table-erp">
+      <thead><tr><th>Bahan Baku</th><th>Jumlah</th><th>Harga Satuan</th><th>Subtotal</th></tr></thead>
+      <tbody>
+        <% (pembelian.pembelian_detail || []).forEach(d => { %>
+          <tr>
+            <td><%= d.bahan_baku ? d.bahan_baku.nama_bahan : '-' %></td>
+            <td><%= d.jumlah %> <%= d.bahan_baku ? d.bahan_baku.satuan : '' %></td>
+            <td><%= rupiah(d.harga_satuan) %></td>
+            <td><%= rupiah(d.subtotal) %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+    </div>
+
+    <div class="bg-cream rounded-md p-4 space-y-1.5 text-sm border border-line max-w-xs ml-auto">
+      <div class="flex justify-between pt-1.5"><span class="font-semibold">Total</span><span class="font-display font-semibold text-clay text-lg"><%= rupiah(pembelian.total) %></span></div>
+      <div class="flex justify-between text-xs"><span class="text-ink/50">Sudah dibayar</span><span><%= rupiah(pembelian.total_dibayar) %></span></div>
+      <div class="flex justify-between text-xs"><span class="text-ink/50">Sisa</span><span class="font-medium"><%= rupiah(pembelian.total - pembelian.total_dibayar) %></span></div>
+    </div>
+
+    <% if (pembelian.catatan) { %>
+      <div class="mt-4 text-sm">
+        <p class="text-ink/40 text-xs">Catatan</p>
+        <p><%= pembelian.catatan %></p>
+      </div>
+    <% } %>
+  </div>
+</div>

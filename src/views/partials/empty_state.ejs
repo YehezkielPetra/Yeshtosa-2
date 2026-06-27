@@ -1,0 +1,7 @@
+<% /* params: message, actionLabel (opsional), actionUrl (opsional) */ %>
+<div class="text-center py-12">
+  <p class="text-ink/40 text-sm mb-3"><%= message %></p>
+  <% if (typeof actionLabel !== 'undefined' && actionLabel && typeof actionUrl !== 'undefined') { %>
+    <a href="<%= actionUrl %>" class="btn-primary inline-flex text-sm"><%= actionLabel %></a>
+  <% } %>
+</div>

@@ -1,0 +1,30 @@
+<% layout('layouts/main') -%>
+
+<div class="panel">
+  <div class="flex items-center justify-between p-4 border-b border-line">
+    <h2 class="text-sm font-semibold text-ink">Daftar Pembelian</h2>
+    <a href="/pembelian/tambah" class="btn-primary text-sm">+ Tambah Pembelian</a>
+  </div>
+  <% if (pembelianList.length === 0) { %>
+    <%- include('../partials/empty_state', { message: 'Belum ada transaksi pembelian.', actionLabel: '+ Tambah Pembelian', actionUrl: '/pembelian/tambah' }) %>
+  <% } else { %>
+    <div class="table-wrap">
+<table class="table-erp">
+      <thead><tr><th>No. Pembelian</th><th>Tanggal</th><th>Supplier</th><th>Cabang</th><th>Total</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+        <% pembelianList.forEach(p => { %>
+          <tr class="cursor-pointer" onclick="window.location='/pembelian/<%= p.id %>'">
+            <td class="font-mono text-xs"><%= p.nomor_pembelian %></td>
+            <td class="text-xs"><%= tanggalIndo(p.tanggal_beli) %></td>
+            <td><%= p.supplier ? p.supplier.nama : '-' %></td>
+            <td class="text-xs text-ink/50"><%= p.cabang ? p.cabang.nama : '-' %></td>
+            <td class="font-medium"><%= rupiah(p.total) %></td>
+            <td><%- include('../partials/status_bayar_pill', { status: p.status_bayar }) %></td>
+            <td><a href="/pembelian/<%= p.id %>" class="text-clay text-sm font-medium hover:underline">Detail</a></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+</div>
+  <% } %>
+</div>

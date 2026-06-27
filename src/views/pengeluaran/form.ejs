@@ -1,0 +1,33 @@
+<% layout('layouts/main') -%>
+
+<div class="max-w-lg">
+  <div class="panel p-5">
+    <form action="/pengeluaran/tambah" method="POST" class="space-y-4">
+      <div>
+        <label class="label-field">Kategori</label>
+        <select name="kategori_id" class="input-field">
+          <option value="">Pilih kategori...</option>
+          <% kategoriList.forEach(k => { %>
+            <option value="<%= k.id %>"><%= k.nama %></option>
+          <% }) %>
+        </select>
+      </div>
+      <div>
+        <label class="label-field">Jumlah (Rp)</label>
+        <input type="number" step="0.01" name="jumlah" required class="input-field">
+      </div>
+      <div>
+        <label class="label-field">Tanggal</label>
+        <input type="date" name="tanggal" class="input-field" value="<%= new Date().toISOString().slice(0,10) %>">
+      </div>
+      <div>
+        <label class="label-field">Keterangan</label>
+        <textarea name="keterangan" rows="2" class="input-field"></textarea>
+      </div>
+      <div class="flex gap-3 pt-2">
+        <button type="submit" class="btn-primary">Simpan</button>
+        <a href="/pengeluaran" class="btn-secondary">Batal</a>
+      </div>
+    </form>
+  </div>
+</div>

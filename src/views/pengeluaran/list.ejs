@@ -1,0 +1,29 @@
+<% layout('layouts/main') -%>
+
+<div class="panel">
+  <div class="flex items-center justify-between p-4 border-b border-line">
+    <h2 class="text-sm font-semibold text-ink">Daftar Pengeluaran</h2>
+    <a href="/pengeluaran/tambah" class="btn-primary text-sm">+ Tambah Pengeluaran</a>
+  </div>
+  <% if (pengeluaranList.length === 0) { %>
+    <%- include('../partials/empty_state', { message: 'Belum ada pengeluaran tercatat.', actionLabel: '+ Tambah Pengeluaran', actionUrl: '/pengeluaran/tambah' }) %>
+  <% } else { %>
+    <div class="table-wrap">
+<table class="table-erp">
+      <thead><tr><th>No. Pengeluaran</th><th>Tanggal</th><th>Kategori</th><th>Cabang</th><th>Jumlah</th><th>Keterangan</th></tr></thead>
+      <tbody>
+        <% pengeluaranList.forEach(p => { %>
+          <tr>
+            <td class="font-mono text-xs"><%= p.nomor_pengeluaran %></td>
+            <td class="text-xs"><%= tanggalIndo(p.tanggal) %></td>
+            <td><%= p.kategori ? p.kategori.nama : '-' %></td>
+            <td class="text-xs text-ink/50"><%= p.cabang ? p.cabang.nama : '-' %></td>
+            <td class="font-medium text-warn"><%= rupiah(p.jumlah) %></td>
+            <td class="text-xs"><%= p.keterangan || '-' %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+</div>
+  <% } %>
+</div>

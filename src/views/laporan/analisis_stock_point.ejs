@@ -1,0 +1,27 @@
+<% layout('layouts/main') -%>
+
+<div class="panel p-5">
+  <h2 class="text-sm font-semibold text-ink mb-1">Analisis Stock Point</h2>
+  <p class="text-xs text-ink/40 mb-4">Penjualan, margin, dan kinerja bulan ini.</p>
+
+  <% if (stockPointData.length === 0) { %>
+    <%- include('../partials/empty_state', { message: 'Belum ada data stock point dengan transaksi bulan ini.' }) %>
+  <% } else { %>
+    <div class="table-wrap">
+<table class="table-erp">
+      <thead><tr><th>Lokasi</th><th>Pelanggan</th><th>Total Penjualan</th><th>Jumlah Transaksi</th><th>Margin</th></tr></thead>
+      <tbody>
+        <% stockPointData.forEach(s => { %>
+          <tr>
+            <td class="font-medium"><%= s.nama_lokasi %></td>
+            <td class="text-xs"><%= s.pelanggan ? s.pelanggan.nama : '-' %></td>
+            <td><%= rupiah(s.totalPenjualan) %></td>
+            <td><%= s.jumlahTransaksi %></td>
+            <td><span class="pill pill-lunas"><%= s.margin %>%</span></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+</div>
+  <% } %>
+</div>

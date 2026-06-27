@@ -1,0 +1,99 @@
+<% layout('layouts/main') -%>
+
+<div class="space-y-5">
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+    <!-- Stok Bahan Baku -->
+    <div class="panel p-4">
+      <h2 class="text-sm font-semibold text-ink mb-3">Stok Bahan Baku</h2>
+      <% if (stokBahan.length === 0) { %>
+        <%- include('../partials/empty_state', { message: 'Belum ada data stok bahan baku.' }) %>
+      <% } else { %>
+        <div class="table-wrap">
+<table class="table-erp">
+          <thead><tr><th>Bahan</th><th>Cabang</th><th>Jumlah</th></tr></thead>
+          <tbody>
+            <% stokBahan.forEach(s => { %>
+              <tr class="<%= s.isWarning ? 'bg-warn/5' : '' %>">
+                <td><%= s.bahan_baku ? s.bahan_baku.nama_bahan : '-' %> <% if (s.isWarning) { %><span class="pill pill-belum ml-1">Stok Rendah</span><% } %></td>
+                <td class="text-xs text-ink/50"><%= s.cabang ? s.cabang.nama : '-' %></td>
+                <td class="font-medium"><%= s.jumlah %> <%= s.bahan_baku ? s.bahan_baku.satuan : '' %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+</div>
+      <% } %>
+    </div>
+
+    <!-- Batch Frozen dengan expired -->
+    <div class="panel p-4">
+      <h2 class="text-sm font-semibold text-ink mb-3">Batch Frozen &amp; Tanggal Kedaluwarsa</h2>
+      <% if (batchFrozen.length === 0) { %>
+        <%- include('../partials/empty_state', { message: 'Tidak ada batch Frozen aktif.' }) %>
+      <% } else { %>
+        <div class="table-wrap">
+<table class="table-erp">
+          <thead><tr><th>Produk</th><th>Sisa</th><th>Expired</th></tr></thead>
+          <tbody>
+            <% batchFrozen.forEach(b => { %>
+              <tr>
+                <td><%= b.produk ? b.produk.nama_produk : '-' %></td>
+                <td class="font-medium"><%= b.jumlah_sisa %></td>
+                <td class="text-xs"><%= tanggalIndo(b.tanggal_expired) %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+</div>
+      <% } %>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+    <!-- Stok Fresh -->
+    <div class="panel p-4">
+      <h2 class="text-sm font-semibold text-ink mb-3 flex items-center gap-2"><span class="status-dot bg-clay"></span> Stok Fresh</h2>
+      <% if (stokFresh.length === 0) { %>
+        <%- include('../partials/empty_state', { message: 'Tidak ada stok Fresh.' }) %>
+      <% } else { %>
+        <div class="table-wrap">
+<table class="table-erp">
+          <thead><tr><th>Produk</th><th>Cabang</th><th>Jumlah</th></tr></thead>
+          <tbody>
+            <% stokFresh.forEach(s => { %>
+              <tr>
+                <td><%= s.produk ? s.produk.nama_produk : '-' %></td>
+                <td class="text-xs text-ink/50"><%= s.cabang ? s.cabang.nama : '-' %></td>
+                <td class="font-medium"><%= s.jumlah %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+</div>
+      <% } %>
+    </div>
+
+    <!-- Stok Frozen -->
+    <div class="panel p-4">
+      <h2 class="text-sm font-semibold text-ink mb-3 flex items-center gap-2"><span class="status-dot bg-frost"></span> Stok Frozen</h2>
+      <% if (stokFrozen.length === 0) { %>
+        <%- include('../partials/empty_state', { message: 'Tidak ada stok Frozen.' }) %>
+      <% } else { %>
+        <div class="table-wrap">
+<table class="table-erp">
+          <thead><tr><th>Produk</th><th>Cabang</th><th>Jumlah</th></tr></thead>
+          <tbody>
+            <% stokFrozen.forEach(s => { %>
+              <tr>
+                <td><%= s.produk ? s.produk.nama_produk : '-' %></td>
+                <td class="text-xs text-ink/50"><%= s.cabang ? s.cabang.nama : '-' %></td>
+                <td class="font-medium"><%= s.jumlah %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+</div>
+      <% } %>
+    </div>
+  </div>
+</div>

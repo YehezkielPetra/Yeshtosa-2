@@ -1,0 +1,67 @@
+<% layout('layouts/main') -%>
+
+<div class="max-w-lg">
+  <div class="panel p-5">
+    <% if (penjualanBelumLunas.length === 0) { %>
+      <%- include('../partials/empty_state', { message: 'Tidak ada order yang belum lunas.' }) %>
+    <% } else { %>
+      <form action="/pembayaran/tambah" method="POST" class="space-y-4" id="form-pembayaran">
+        <div>
+          <label class="label-field">Order Penjualan</label>
+          <select name="penjualan_id" id="penjualan_id" required class="input-field">
+            <option value="">Pilih order...</option>
+            <% penjualanBelumLunas.forEach(p => { %>
+              <option value="<%= p.id %>"
+                data-sisa="<%= p.total - p.total_dibayar %>"
+                <%= String(p.id) === String(penjualanTerpilih) ? 'selected' : '' %>>
+                <%= p.nomor_order %> · <%= p.pelanggan ? p.pelanggan.nama : '-' %> (sisa <%= rupiah(p.total - p.total_dibayar) %>)
+              </option>
+            <% }) %>
+          </select>
+        </div>
+
+        <div>
+          <label class="label-field">Sisa Tagihan</label>
+          <input type="text" id="display-sisa" class="input-field bg-line/30" readonly value="Rp0">
+        </div>
+
+        <div>
+          <label class="label-field">Jumlah Dibayar</label>
+          <input type="number" step="0.01" name="jumlah_bayar" id="jumlah_bayar" required class="input-field">
+        </div>
+
+        <div>
+          <label class="label-field">Metode Pembayaran</label>
+          <select name="metode" class="input-field">
+            <option value="cash">Cash</option>
+            <option value="transfer">Transfer Bank</option>
+            <option value="qris">QRIS</option>
+            <option value="lainnya">Lainnya</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="label-field">Catatan</label>
+          <textarea name="catatan" rows="2" class="input-field"></textarea>
+        </div>
+
+        <div class="flex gap-3 pt-2">
+          <button type="submit" class="btn-primary">Simpan Pembayaran</button>
+          <a href="/pembayaran" class="btn-secondary">Batal</a>
+        </div>
+      </form>
+
+      <script>
+        const select = document.getElementById('penjualan_id');
+        function updateSisa() {
+          const opt = select.selectedOptions[0];
+          const sisa = opt ? Number(opt.dataset.sisa) || 0 : 0;
+          document.getElementById('display-sisa').value = 'Rp' + Math.round(sisa).toLocaleString('id-ID');
+          document.getElementById('jumlah_bayar').max = sisa;
+        }
+        select.addEventListener('change', updateSisa);
+        updateSisa();
+      </script>
+    <% } %>
+  </div>
+</div>

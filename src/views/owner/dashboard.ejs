@@ -1,0 +1,156 @@
+<% layout('layouts/main') -%>
+
+<div class="space-y-5">
+  <!-- Stat cards utama -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div class="stat-card border-l-4 border-l-gold">
+      <p class="text-xs uppercase tracking-wide text-ink/50 font-semibold">Total Kas (Semua Cabang)</p>
+      <p class="text-2xl font-display font-semibold text-ink"><%= rupiah(totalKas) %></p>
+    </div>
+    <div class="stat-card border-l-4 border-l-clay">
+      <p class="text-xs uppercase tracking-wide text-ink/50 font-semibold">Omzet Bulan Ini</p>
+      <p class="text-2xl font-display font-semibold text-clay"><%= rupiah(totalOmzet) %></p>
+    </div>
+    <div class="stat-card border-l-4 border-l-sage">
+      <p class="text-xs uppercase tracking-wide text-ink/50 font-semibold">Estimasi Laba</p>
+      <p class="text-2xl font-display font-semibold text-sage-dark"><%= rupiah(estimasiLaba) %></p>
+      <p class="text-xs text-ink/40">Margin <%= margin %>%</p>
+    </div>
+    <div class="stat-card border-l-4 border-l-warn">
+      <p class="text-xs uppercase tracking-wide text-ink/50 font-semibold">Total Piutang</p>
+      <p class="text-2xl font-display font-semibold text-warn"><%= rupiah(totalPiutang) %></p>
+    </div>
+  </div>
+
+  <!-- Kas per cabang -->
+  <div class="panel p-4">
+    <h2 class="text-sm font-semibold text-ink mb-3">Kas per Cabang</h2>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <% kasPerCabang.forEach(c => { %>
+        <div class="border border-line rounded-md p-3 flex justify-between items-center">
+          <span class="text-sm font-medium"><%= c.nama %></span>
+          <span class="font-display font-semibold text-ink"><%= rupiah(c.saldo) %></span>
+        </div>
+      <% }) %>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+    <!-- Stok Fresh/Frozen agregat -->
+    <div class="panel p-4">
+      <h2 class="text-sm font-semibold text-ink mb-3">Stok Fresh &amp; Frozen (Semua Cabang)</h2>
+      <p class="text-xs font-semibold uppercase text-ink/40 mb-1">Fresh</p>
+      <% stokFresh.forEach(s => { %>
+        <div class="flex justify-between text-sm py-1">
+          <span class="flex items-center gap-2"><span class="status-dot bg-clay"></span><%= s.produk ? s.produk.nama_produk : '-' %> <span class="text-ink/40 text-xs">(<%= s.cabang ? s.cabang.nama : '-' %>)</span></span>
+          <span class="font-medium"><%= s.jumlah %></span>
+        </div>
+      <% }) %>
+      <p class="text-xs font-semibold uppercase text-ink/40 mt-3 mb-1">Frozen</p>
+      <% stokFrozen.forEach(s => { %>
+        <div class="flex justify-between text-sm py-1">
+          <span class="flex items-center gap-2"><span class="status-dot bg-frost"></span><%= s.produk ? s.produk.nama_produk : '-' %> <span class="text-ink/40 text-xs">(<%= s.cabang ? s.cabang.nama : '-' %>)</span></span>
+          <span class="font-medium"><%= s.jumlah %></span>
+        </div>
+      <% }) %>
+    </div>
+
+    <!-- Pelanggan tidak aktif -->
+    <div class="panel p-4">
+      <h2 class="text-sm font-semibold text-ink mb-3">Pelanggan Tidak Aktif (&gt;90 hari)</h2>
+      <% if (pelangganTidakAktif.length === 0) { %>
+        <%- include('../partials/empty_state', { message: 'Semua pelanggan masih aktif bertransaksi.' }) %>
+      <% } else { %>
+        <div class="max-h-64 overflow-y-auto space-y-1">
+          <% pelangganTidakAktif.forEach(p => { %>
+            <div class="flex justify-between text-sm py-1.5 border-b border-line/50">
+              <span><%= p.nama %></span>
+              <span class="text-xs text-ink/40 capitalize"><%= p.kategori %></span>
+            </div>
+          <% }) %>
+        </div>
+      <% } %>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+    <!-- Reseller terbaik -->
+    <div class="panel p-4">
+      <h2 class="text-sm font-semibold text-ink mb-3">Reseller Terbaik (Bulan Ini)</h2>
+      <% if (resellerPerforma.length === 0) { %>
+        <%- include('../partials/empty_state', { message: 'Belum ada transaksi reseller bulan ini.' }) %>
+      <% } else { %>
+        <div class="table-wrap">
+<table class="table-erp">
+          <thead><tr><th>#</th><th>Nama</th><th>Total Penjualan</th></tr></thead>
+          <tbody>
+            <% resellerPerforma.forEach((r, idx) => { %>
+              <tr><td><%= idx + 1 %></td><td><%= r.nama %></td><td><%= rupiah(r.total) %></td></tr>
+            <% }) %>
+          </tbody>
+        </table>
+</div>
+      <% } %>
+      <a href="/laporan/analisis/reseller" class="text-clay text-sm font-medium mt-3 inline-block hover:underline">Lihat analisis lengkap →</a>
+    </div>
+
+    <!-- Stock Point terbaik -->
+    <div class="panel p-4">
+      <h2 class="text-sm font-semibold text-ink mb-3">Stock Point Terbaik (Bulan Ini)</h2>
+      <% if (stockPointPerforma.length === 0) { %>
+        <%- include('../partials/empty_state', { message: 'Belum ada transaksi stock point bulan ini.' }) %>
+      <% } else { %>
+        <div class="table-wrap">
+<table class="table-erp">
+          <thead><tr><th>#</th><th>Nama</th><th>Total Penjualan</th></tr></thead>
+          <tbody>
+            <% stockPointPerforma.forEach((r, idx) => { %>
+              <tr><td><%= idx + 1 %></td><td><%= r.nama %></td><td><%= rupiah(r.total) %></td></tr>
+            <% }) %>
+          </tbody>
+        </table>
+</div>
+      <% } %>
+      <a href="/laporan/analisis/stock-point" class="text-clay text-sm font-medium mt-3 inline-block hover:underline">Lihat analisis lengkap →</a>
+    </div>
+  </div>
+
+  <!-- Pesanan & Pembayaran terbaru -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+    <div class="panel p-4">
+      <h2 class="text-sm font-semibold text-ink mb-3">Pesanan Terbaru</h2>
+      <div class="table-wrap">
+<table class="table-erp">
+        <thead><tr><th>Order</th><th>Pelanggan</th><th>Cabang</th><th>Total</th></tr></thead>
+        <tbody>
+          <% pesananTerbaru.forEach(p => { %>
+            <tr>
+              <td class="font-mono text-xs"><%= p.nomor_order %></td>
+              <td><%= p.pelanggan ? p.pelanggan.nama : '-' %></td>
+              <td class="text-xs text-ink/50"><%= p.cabang ? p.cabang.nama : '-' %></td>
+              <td><%= rupiah(p.total) %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+</div>
+    </div>
+    <div class="panel p-4">
+      <h2 class="text-sm font-semibold text-ink mb-3">Pembayaran Terbaru</h2>
+      <div class="table-wrap">
+<table class="table-erp">
+        <thead><tr><th>No. Pembayaran</th><th>Order</th><th>Jumlah</th></tr></thead>
+        <tbody>
+          <% pembayaranTerbaru.forEach(p => { %>
+            <tr>
+              <td class="font-mono text-xs"><%= p.nomor_pembayaran %></td>
+              <td class="text-xs"><%= p.penjualan ? p.penjualan.nomor_order : '-' %></td>
+              <td><%= rupiah(p.jumlah_bayar) %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+</div>
+    </div>
+  </div>
+</div>

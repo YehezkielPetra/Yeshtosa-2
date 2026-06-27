@@ -1,0 +1,95 @@
+<% layout('layouts/main') -%>
+
+<div class="max-w-2xl space-y-5">
+  <div class="panel p-5">
+    <h2 class="text-sm font-semibold text-ink mb-1">Tutup Buku Bulanan</h2>
+    <p class="text-xs text-ink/40 mb-4">Sistem akan menghitung laba, cadangan usaha, cadangan pajak, dan laba siap distribusi. Setelah final, saldo bulan berikutnya akan bersih.</p>
+
+    <form id="form-tutup-buku" class="space-y-4">
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div>
+          <label class="label-field">Cabang</label>
+          <select name="cabang_id" id="cabang_id" required class="input-field">
+            <option value="">Pilih cabang...</option>
+            <% cabangList.forEach(c => { %>
+              <option value="<%= c.id %>"><%= c.nama %></option>
+            <% }) %>
+          </select>
+        </div>
+        <div>
+          <label class="label-field">Bulan</label>
+          <input type="number" name="bulan" id="bulan" min="1" max="12" value="<%= defaultBulan %>" required class="input-field">
+        </div>
+        <div>
+          <label class="label-field">Tahun</label>
+          <input type="number" name="tahun" id="tahun" value="<%= defaultTahun %>" required class="input-field">
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="label-field">Persen Cadangan Pajak (%)</label>
+          <input type="number" step="0.01" name="persen_cadangan_pajak" id="persen_cadangan_pajak" value="2.5" class="input-field">
+        </div>
+        <div>
+          <label class="label-field">Persen Cadangan Usaha (%)</label>
+          <input type="number" step="0.01" name="persen_cadangan_usaha" id="persen_cadangan_usaha" value="10" class="input-field">
+        </div>
+      </div>
+
+      <button type="button" onclick="hitungPreview()" class="btn-secondary">Hitung Preview</button>
+    </form>
+  </div>
+
+  <div id="preview-container" class="panel p-5 hidden">
+    <h3 class="text-sm font-semibold text-ink mb-3">Preview Hasil Tutup Buku</h3>
+    <div class="space-y-1.5 text-sm" id="preview-content"></div>
+    <form action="/laporan/tutup-buku/baru" method="POST" class="mt-4" id="form-final">
+      <input type="hidden" name="cabang_id" id="final_cabang_id">
+      <input type="hidden" name="bulan" id="final_bulan">
+      <input type="hidden" name="tahun" id="final_tahun">
+      <input type="hidden" name="persen_cadangan_pajak" id="final_persen_pajak">
+      <input type="hidden" name="persen_cadangan_usaha" id="final_persen_usaha">
+      <button type="submit" class="btn-primary" onclick="return confirm('Tutup buku final tidak dapat dibatalkan. Lanjutkan?')">Tutup Buku Final</button>
+    </form>
+  </div>
+</div>
+
+<script>
+async function hitungPreview() {
+  const cabang_id = document.getElementById('cabang_id').value;
+  const bulan = document.getElementById('bulan').value;
+  const tahun = document.getElementById('tahun').value;
+  const persen_cadangan_pajak = document.getElementById('persen_cadangan_pajak').value;
+  const persen_cadangan_usaha = document.getElementById('persen_cadangan_usaha').value;
+
+  if (!cabang_id) { alert('Pilih cabang terlebih dahulu.'); return; }
+
+  const res = await fetch('/laporan/tutup-buku/preview', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ cabang_id, bulan, tahun, persen_cadangan_pajak, persen_cadangan_usaha }),
+  });
+  const data = await res.json();
+  if (data.error) { alert(data.error); return; }
+
+  function rp(n) { return 'Rp' + Math.round(n).toLocaleString('id-ID'); }
+
+  document.getElementById('preview-content').innerHTML = `
+    <div class="flex justify-between"><span class="text-ink/60">Total Omzet</span><span class="font-medium">${rp(data.totalOmzet)}</span></div>
+    <div class="flex justify-between"><span class="text-ink/60">Total Pembelian (HPP)</span><span>${rp(data.totalPembelian)}</span></div>
+    <div class="flex justify-between"><span class="text-ink/60">Total Pengeluaran</span><span>${rp(data.totalPengeluaran)}</span></div>
+    <div class="flex justify-between pt-1.5 border-t border-line"><span class="font-medium">Laba Kotor</span><span class="font-medium">${rp(data.labaKotor)}</span></div>
+    <div class="flex justify-between"><span class="font-semibold">Laba Bersih</span><span class="font-semibold text-clay">${rp(data.labaBersih)}</span></div>
+    <div class="flex justify-between text-xs pt-2"><span class="text-ink/50">Cadangan Pajak (${data.persenPajak}%)</span><span>${rp(data.nominalPajak)}</span></div>
+    <div class="flex justify-between text-xs"><span class="text-ink/50">Cadangan Usaha (${data.persenCadangan}%)</span><span>${rp(data.nominalCadangan)}</span></div>
+    <div class="flex justify-between pt-1.5 border-t border-line"><span class="font-semibold">Laba Siap Distribusi</span><span class="font-display font-semibold text-sage-dark text-lg">${rp(data.labaSiapDistribusi)}</span></div>
+  `;
+  document.getElementById('final_cabang_id').value = cabang_id;
+  document.getElementById('final_bulan').value = bulan;
+  document.getElementById('final_tahun').value = tahun;
+  document.getElementById('final_persen_pajak').value = persen_cadangan_pajak;
+  document.getElementById('final_persen_usaha').value = persen_cadangan_usaha;
+  document.getElementById('preview-container').classList.remove('hidden');
+}
+</script>

@@ -1,0 +1,33 @@
+<% layout('layouts/main') -%>
+
+<div class="panel">
+  <div class="flex items-center justify-between p-4 border-b border-line">
+    <h2 class="text-sm font-semibold text-ink">Daftar Produk</h2>
+    <a href="/master/produk/tambah" class="btn-primary text-sm">+ Tambah Produk</a>
+  </div>
+  <% if (produkList.length === 0) { %>
+    <%- include('../partials/empty_state', { message: 'Belum ada produk. Tambahkan produk pertama Anda.', actionLabel: '+ Tambah Produk', actionUrl: '/master/produk/tambah' }) %>
+  <% } else { %>
+    <div class="table-wrap">
+<table class="table-erp">
+      <thead>
+        <tr><th>Kode</th><th>Nama Produk</th><th>Satuan</th><th>Harga Default</th><th>Harga Reseller</th><th>Harga Stock Point</th><th>Status</th><th></th></tr>
+      </thead>
+      <tbody>
+        <% produkList.forEach(p => { %>
+          <tr>
+            <td class="font-mono text-xs"><%= p.kode_produk %></td>
+            <td class="font-medium"><%= p.nama_produk %></td>
+            <td><%= p.satuan %></td>
+            <td><%= rupiah(p.harga_jual_default) %></td>
+            <td><%= p.harga_jual_reseller ? rupiah(p.harga_jual_reseller) : '-' %></td>
+            <td><%= p.harga_jual_stock_point ? rupiah(p.harga_jual_stock_point) : '-' %></td>
+            <td><span class="pill <%= p.is_aktif ? 'pill-lunas' : 'pill-belum' %>"><%= p.is_aktif ? 'Aktif' : 'Nonaktif' %></span></td>
+            <td><a href="/master/produk/<%= p.id %>/edit" class="text-clay text-sm font-medium hover:underline">Edit</a></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+</div>
+  <% } %>
+</div>

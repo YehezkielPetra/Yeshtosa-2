@@ -1,0 +1,37 @@
+<% layout('layouts/main') -%>
+
+<div class="panel p-5">
+  <div class="flex items-center justify-between mb-4 flex-wrap gap-3">
+    <div>
+      <h2 class="text-sm font-semibold text-ink">Pelanggan Konsumen Tidak Aktif</h2>
+      <p class="text-xs text-ink/40 mt-1">Pelanggan yang tidak melakukan pembelian dalam periode tertentu.</p>
+    </div>
+    <form method="GET" class="flex items-center gap-2">
+      <select name="hari" class="input-field text-sm" onchange="this.form.submit()">
+        <option value="30" <%= hariTidakAktif === 30 ? 'selected' : '' %>>30 hari</option>
+        <option value="60" <%= hariTidakAktif === 60 ? 'selected' : '' %>>60 hari</option>
+        <option value="90" <%= hariTidakAktif === 90 ? 'selected' : '' %>>90 hari</option>
+        <option value="180" <%= hariTidakAktif === 180 ? 'selected' : '' %>>180 hari</option>
+      </select>
+    </form>
+  </div>
+
+  <% if (tidakAktif.length === 0) { %>
+    <%- include('../partials/empty_state', { message: 'Semua konsumen masih aktif bertransaksi dalam periode ini.' }) %>
+  <% } else { %>
+    <div class="table-wrap">
+<table class="table-erp">
+      <thead><tr><th>No. Pelanggan</th><th>Nama</th><th>Alamat</th></tr></thead>
+      <tbody>
+        <% tidakAktif.forEach(p => { %>
+          <tr>
+            <td class="font-mono text-xs"><%= p.nomor_pelanggan %></td>
+            <td class="font-medium"><%= p.nama %></td>
+            <td class="text-xs"><%= p.alamat || '-' %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+</div>
+  <% } %>
+</div>

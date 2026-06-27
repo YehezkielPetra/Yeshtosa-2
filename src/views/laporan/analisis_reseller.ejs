@@ -1,0 +1,41 @@
+<% layout('layouts/main') -%>
+
+<div class="panel p-5">
+  <h2 class="text-sm font-semibold text-ink mb-1">Analisis Reseller</h2>
+  <p class="text-xs text-ink/40 mb-4">Ranking, penjualan, dan grafik perkembangan 6 bulan terakhir.</p>
+
+  <% if (resellerData.length === 0) { %>
+    <%- include('../partials/empty_state', { message: 'Belum ada data reseller dengan transaksi.' }) %>
+  <% } else { %>
+    <div class="space-y-4">
+      <% resellerData.forEach(r => { %>
+        <% const bulanKeys = Object.keys(r.grafikBulanan); %>
+        <% const maxVal = Math.max(...Object.values(r.grafikBulanan), 1); %>
+        <div class="border border-line rounded-md p-4">
+          <div class="flex items-center justify-between mb-3">
+            <div>
+              <span class="pill pill-fresh mr-2">#<%= r.ranking %></span>
+              <span class="font-medium"><%= r.nama %></span>
+              <span class="text-xs text-ink/40 ml-2">(<%= r.nomor_pelanggan %>)</span>
+            </div>
+            <div class="text-right">
+              <p class="font-display font-semibold text-clay"><%= rupiah(r.totalPenjualan) %></p>
+              <p class="text-xs text-ink/40"><%= r.jumlahTransaksi %> transaksi (6 bln)</p>
+            </div>
+          </div>
+          <!-- Grafik batang sederhana -->
+          <div class="flex items-end gap-2 h-20">
+            <% bulanKeys.forEach(key => { %>
+              <% const val = r.grafikBulanan[key]; %>
+              <% const heightPct = Math.max(4, (val / maxVal) * 100); %>
+              <div class="flex-1 flex flex-col items-center gap-1">
+                <div class="w-full bg-clay/70 rounded-t" style="height: <%= heightPct %>%"></div>
+                <span class="text-[10px] text-ink/40"><%= key.slice(5) %></span>
+              </div>
+            <% }) %>
+          </div>
+        </div>
+      <% }) %>
+    </div>
+  <% } %>
+</div>
