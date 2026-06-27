@@ -8,12 +8,11 @@
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label class="label-field">Pelanggan</label>
-          <select name="pelanggan_id" id="pelanggan_id" required class="input-field">
-            <option value="">Pilih pelanggan...</option>
-            <% pelangganList.forEach(p => { %>
-              <option value="<%= p.id %>" data-kategori="<%= p.kategori %>"><%= p.nomor_pelanggan %> · <%= p.nama %> (<%= p.kategori.replace('_',' ') %>)</option>
-            <% }) %>
-          </select>
+          <div class="combo-wrap" data-name="pelanggan_id">
+            <input type="text" class="input-field combo-input" placeholder="Ketik nama atau no. pelanggan..." autocomplete="off">
+            <input type="hidden" name="pelanggan_id" id="pelanggan_id" class="combo-value" required>
+            <div class="combo-dropdown hidden"></div>
+          </div>
         </div>
         <div>
           <label class="label-field">Status Produk</label>
@@ -79,7 +78,7 @@
 
       <!-- Ongkir -->
       <div class="border border-line rounded-md p-4 space-y-3">
-        <p class="text-xs font-semibold uppercase text-ink/50">Ongkir <span class="text-ink/30">(dipisah dari omzet)</span></p>
+        <p class="text-xs font-semibold uppercase text-ink/50">Ongkir <span class="text-ink/30">(dipisah dari omzet, seperti tarif Gojek/Grab yang baru pasti saat barang dikirim)</span></p>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label class="label-field">Status Ongkir</label>
@@ -98,14 +97,15 @@
             </select>
           </div>
           <div>
-            <label class="label-field">Ongkir Estimasi (Rp)</label>
+            <label class="label-field">Ongkir Estimasi (Rp) <span class="text-ink/30">— perkiraan awal</span></label>
             <input type="number" step="0.01" name="ongkir_estimasi" class="input-field" value="0">
           </div>
           <div>
-            <label class="label-field">Ongkir Aktual (Rp)</label>
+            <label class="label-field">Ongkir Aktual (Rp) <span class="text-clay">— dipakai untuk pencatatan kas</span></label>
             <input type="number" step="0.01" name="ongkir_aktual" class="input-field" value="0">
           </div>
         </div>
+        <p class="text-xs text-ink/40">Isi Estimasi saat order dibuat (perkiraan tarif kurir). Setelah barang benar-benar dikirim dan tarif pasti diketahui, isi/perbarui Aktual — nilai inilah yang dipakai untuk pencatatan kas dan laporan keuangan.</p>
       </div>
 
       <div>
@@ -124,35 +124,27 @@
 <script>
   const PRODUK_LIST = <%- JSON.stringify(produkList) %>;
   const STOK_LIST = <%- JSON.stringify(stokList) %>;
+  const PELANGGAN_LIST = <%- JSON.stringify(pelangganList) %>;
   let itemCount = 0;
+  let kategoriPelangganTerpilih = 'konsumen';
+
+  // --- Combobox Pelanggan ---
+  const pelangganItems = PELANGGAN_LIST.map(p => ({
+    id: p.id,
+    label: `${p.nomor_pelanggan} · ${p.nama} (${p.kategori.replace('_',' ')})`,
+    searchText: `${p.nomor_pelanggan} ${p.nama} ${p.kategori}`,
+    kategori: p.kategori,
+  }));
+  initCombobox(document.querySelector('[data-name="pelanggan_id"]'), pelangganItems, {
+    onSelect(item) {
+      kategoriPelangganTerpilih = item.kategori;
+      updateRingkasan();
+    },
+  });
 
   function stokTersedia(produkId, status) {
     const s = STOK_LIST.find(s => s.produk_id === produkId && s.status === status);
     return s ? Number(s.jumlah) : 0;
-  }
-
-  function produkOptionsHtml() {
-    return '<option value="">Pilih produk...</option>' + PRODUK_LIST.map(p => `<option value="${p.id}">${p.nama_produk}</option>`).join('');
-  }
-
-  function tambahItem() {
-    itemCount++;
-    const container = document.getElementById('item-container');
-    const div = document.createElement('div');
-    div.className = 'flex gap-2 items-center item-row';
-    div.dataset.idx = itemCount;
-    div.innerHTML = `
-      <select name="produk_id" class="input-field flex-1 produk-select" onchange="updateRingkasan()">${produkOptionsHtml()}</select>
-      <input type="number" name="jumlah" min="1" value="1" class="input-field w-24 jumlah-input" onchange="updateRingkasan()">
-      <span class="text-xs text-ink/40 w-20 stok-info">stok: -</span>
-      <button type="button" onclick="hapusItem(this)" class="text-warn text-sm px-2">✕</button>
-    `;
-    container.appendChild(div);
-  }
-
-  function hapusItem(btn) {
-    btn.closest('.item-row').remove();
-    updateRingkasan();
   }
 
   function hargaUntukKategori(produk, kategori) {
@@ -161,9 +153,44 @@
     return Number(produk.harga_jual_default);
   }
 
+  // --- Combobox Produk (dibuat dinamis per baris item) ---
+  const produkItemsBase = PRODUK_LIST.map(p => ({
+    id: p.id,
+    label: p.nama_produk,
+    searchText: `${p.nama_produk} ${p.kode_produk || ''}`,
+  }));
+
+  function tambahItem() {
+    itemCount++;
+    const idx = itemCount;
+    const container = document.getElementById('item-container');
+    const div = document.createElement('div');
+    div.className = 'flex gap-2 items-center item-row';
+    div.dataset.idx = idx;
+    div.innerHTML = `
+      <div class="combo-wrap flex-1" data-name="produk_id_${idx}">
+        <input type="text" class="input-field combo-input" placeholder="Cari produk..." autocomplete="off">
+        <input type="hidden" name="produk_id" class="combo-value produk-select">
+        <div class="combo-dropdown hidden"></div>
+      </div>
+      <input type="number" name="jumlah" min="1" value="1" class="input-field w-24 jumlah-input">
+      <span class="text-xs text-ink/40 w-20 stok-info">stok: -</span>
+      <button type="button" onclick="hapusItem(this)" class="text-warn text-sm px-2">✕</button>
+    `;
+    container.appendChild(div);
+
+    initCombobox(div.querySelector(`[data-name="produk_id_${idx}"]`), produkItemsBase, {
+      onSelect() { updateRingkasan(); },
+    });
+    div.querySelector('.jumlah-input').addEventListener('input', updateRingkasan);
+  }
+
+  function hapusItem(btn) {
+    btn.closest('.item-row').remove();
+    updateRingkasan();
+  }
+
   function updateRingkasan() {
-    const pelangganSelect = document.getElementById('pelanggan_id');
-    const kategori = pelangganSelect.selectedOptions[0] ? pelangganSelect.selectedOptions[0].dataset.kategori : 'konsumen';
     const statusProduk = document.getElementById('status_produk').value;
 
     let subtotal = 0;
@@ -173,7 +200,7 @@
       const stokInfo = row.querySelector('.stok-info');
       const produk = PRODUK_LIST.find(p => p.id === produkId);
       if (produk) {
-        const harga = hargaUntukKategori(produk, kategori);
+        const harga = hargaUntukKategori(produk, kategoriPelangganTerpilih);
         subtotal += harga * jumlah;
         const stok = stokTersedia(produkId, statusProduk);
         stokInfo.textContent = `stok: ${stok}`;
@@ -183,7 +210,6 @@
       }
     });
 
-    // Diskon dari promo
     let diskon = Number(document.getElementById('diskon_nominal').value) || 0;
     const promoSelect = document.getElementById('promo_id');
     if (promoSelect.value) {
@@ -216,7 +242,6 @@
     return 'Rp' + Math.round(n).toLocaleString('id-ID');
   }
 
-  document.getElementById('pelanggan_id').addEventListener('change', updateRingkasan);
   document.getElementById('status_produk').addEventListener('change', updateRingkasan);
   document.getElementById('promo_id').addEventListener('change', updateRingkasan);
   document.getElementById('diskon_nominal').addEventListener('input', updateRingkasan);

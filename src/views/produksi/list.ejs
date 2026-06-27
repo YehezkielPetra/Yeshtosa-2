@@ -12,8 +12,8 @@
     <%- include('../partials/empty_state', { message: 'Belum ada catatan produksi.', actionLabel: '+ Catat Produksi', actionUrl: '/produksi/tambah' }) %>
   <% } else { %>
     <div class="table-wrap">
-<table class="table-erp">
-      <thead><tr><th>No. Produksi</th><th>Tanggal</th><th>Cabang</th><th>Hasil</th><th>Item</th></tr></thead>
+    <table class="table-erp">
+      <thead><tr><th>No. Produksi</th><th>Tanggal</th><th>Cabang</th><th>Hasil</th><th>Item</th><th></th></tr></thead>
       <tbody>
         <% produksiList.forEach(p => { %>
           <tr>
@@ -26,10 +26,28 @@
                 <span class="inline-block mr-2"><%= d.produk ? d.produk.nama_produk : '-' %> ×<%= d.jumlah %></span>
               <% }) %>
             </td>
+            <td class="whitespace-nowrap">
+              <a href="/produksi/<%= p.id %>/edit" class="text-clay text-sm font-medium hover:underline mr-3">Edit</a>
+              <form action="/produksi/<%= p.id %>/batalkan" method="POST" class="inline" onsubmit="return konfirmasiBatalkan(this)">
+                <input type="hidden" name="alasan" class="alasan-input">
+                <button type="submit" class="text-warn text-sm font-medium hover:underline">Hapus</button>
+              </form>
+            </td>
           </tr>
         <% }) %>
       </tbody>
     </table>
-</div>
+    </div>
   <% } %>
 </div>
+
+<script>
+function konfirmasiBatalkan(form) {
+  if (!confirm('Yakin ingin menghapus produksi ini? Stok bahan baku dan produk yang terpengaruh akan otomatis dikembalikan.')) {
+    return false;
+  }
+  const alasan = prompt('Alasan penghapusan (opsional):');
+  form.querySelector('.alasan-input').value = alasan || '';
+  return true;
+}
+</script>

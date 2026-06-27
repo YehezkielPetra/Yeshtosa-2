@@ -79,4 +79,21 @@
   .nav-section-title {
     @apply px-3 pt-4 pb-1 text-[11px] font-semibold uppercase tracking-wider text-cream/40;
   }
+
+  /* Searchable Combobox */
+  .combo-wrap {
+    @apply relative;
+  }
+  .combo-dropdown {
+    @apply absolute z-30 mt-1 w-full max-h-56 overflow-y-auto rounded-md border border-line bg-white shadow-lg py-1;
+  }
+  .combo-item {
+    @apply px-3 py-2 text-sm cursor-pointer hover:bg-cream;
+  }
+  .combo-item-active {
+    @apply bg-clay/10;
+  }
+  .combo-empty {
+    @apply px-3 py-2 text-sm text-ink/40;
+  }
 }

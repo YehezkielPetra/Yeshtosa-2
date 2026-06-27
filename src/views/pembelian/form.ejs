@@ -5,12 +5,11 @@
     <form action="/pembelian/tambah" method="POST" class="space-y-4" id="form-pembelian">
       <div>
         <label class="label-field">Supplier</label>
-        <select name="supplier_id" required class="input-field">
-          <option value="">Pilih supplier...</option>
-          <% supplierList.forEach(s => { %>
-            <option value="<%= s.id %>"><%= s.nomor_supplier %> · <%= s.nama %></option>
-          <% }) %>
-        </select>
+        <div class="combo-wrap" data-name="supplier_id">
+          <input type="text" class="input-field combo-input" placeholder="Cari nama atau no. supplier..." autocomplete="off">
+          <input type="hidden" name="supplier_id" class="combo-value" required>
+          <div class="combo-dropdown hidden"></div>
+        </div>
       </div>
 
       <div>
@@ -49,22 +48,50 @@
 </div>
 
 <script>
+  const SUPPLIER_LIST = <%- JSON.stringify(supplierList) %>;
   const BAHAN_LIST = <%- JSON.stringify(bahanList) %>;
-  function bahanOptionsHtml() {
-    return '<option value="">Pilih bahan baku...</option>' + BAHAN_LIST.map(b => `<option value="${b.id}">${b.nama_bahan} (${b.satuan})</option>`).join('');
-  }
+  let itemCount = 0;
+
+  // --- Combobox Supplier ---
+  const supplierItems = SUPPLIER_LIST.map(s => ({
+    id: s.id,
+    label: `${s.nomor_supplier} · ${s.nama}`,
+    searchText: `${s.nomor_supplier} ${s.nama}`,
+  }));
+  initCombobox(document.querySelector('[data-name="supplier_id"]'), supplierItems);
+
+  // --- Combobox Bahan Baku (per baris item) ---
+  const bahanItemsBase = BAHAN_LIST.map(b => ({
+    id: b.id,
+    label: `${b.nama_bahan} (${b.satuan})`,
+    searchText: `${b.nama_bahan} ${b.kode_bahan || ''}`,
+  }));
+
   function tambahItem() {
+    itemCount++;
+    const idx = itemCount;
     const container = document.getElementById('item-container');
     const div = document.createElement('div');
     div.className = 'flex gap-2 items-center item-row';
     div.innerHTML = `
-      <select name="bahan_baku_id" class="input-field flex-1 bahan-select" onchange="updateTotal()">${bahanOptionsHtml()}</select>
-      <input type="number" step="0.01" name="jumlah" min="0.01" value="1" class="input-field w-24 jumlah-input" oninput="updateTotal()">
-      <input type="number" step="0.01" name="harga_satuan" placeholder="Harga satuan" class="input-field w-32 harga-input" oninput="updateTotal()">
+      <div class="combo-wrap flex-1" data-name="bahan_baku_id_${idx}">
+        <input type="text" class="input-field combo-input" placeholder="Cari bahan baku..." autocomplete="off">
+        <input type="hidden" name="bahan_baku_id" class="combo-value bahan-select">
+        <div class="combo-dropdown hidden"></div>
+      </div>
+      <input type="number" step="0.01" name="jumlah" min="0.01" value="1" class="input-field w-24 jumlah-input">
+      <input type="number" step="0.01" name="harga_satuan" placeholder="Harga satuan" class="input-field w-32 harga-input">
       <button type="button" onclick="this.closest('.item-row').remove(); updateTotal()" class="text-warn text-sm px-2">✕</button>
     `;
     container.appendChild(div);
+
+    initCombobox(div.querySelector(`[data-name="bahan_baku_id_${idx}"]`), bahanItemsBase, {
+      onSelect() { updateTotal(); },
+    });
+    div.querySelector('.jumlah-input').addEventListener('input', updateTotal);
+    div.querySelector('.harga-input').addEventListener('input', updateTotal);
   }
+
   function updateTotal() {
     let total = 0;
     document.querySelectorAll('.item-row').forEach(row => {

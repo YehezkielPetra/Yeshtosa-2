@@ -8,16 +8,11 @@
       <form action="/pembayaran/tambah" method="POST" class="space-y-4" id="form-pembayaran">
         <div>
           <label class="label-field">Order Penjualan</label>
-          <select name="penjualan_id" id="penjualan_id" required class="input-field">
-            <option value="">Pilih order...</option>
-            <% penjualanBelumLunas.forEach(p => { %>
-              <option value="<%= p.id %>"
-                data-sisa="<%= p.total - p.total_dibayar %>"
-                <%= String(p.id) === String(penjualanTerpilih) ? 'selected' : '' %>>
-                <%= p.nomor_order %> · <%= p.pelanggan ? p.pelanggan.nama : '-' %> (sisa <%= rupiah(p.total - p.total_dibayar) %>)
-              </option>
-            <% }) %>
-          </select>
+          <div class="combo-wrap" data-name="penjualan_id">
+            <input type="text" class="input-field combo-input" placeholder="Cari no. order atau nama pelanggan..." autocomplete="off">
+            <input type="hidden" name="penjualan_id" id="penjualan_id" class="combo-value" required>
+            <div class="combo-dropdown hidden"></div>
+          </div>
         </div>
 
         <div>
@@ -52,15 +47,30 @@
       </form>
 
       <script>
-        const select = document.getElementById('penjualan_id');
-        function updateSisa() {
-          const opt = select.selectedOptions[0];
-          const sisa = opt ? Number(opt.dataset.sisa) || 0 : 0;
-          document.getElementById('display-sisa').value = 'Rp' + Math.round(sisa).toLocaleString('id-ID');
-          document.getElementById('jumlah_bayar').max = sisa;
+        const PENJUALAN_LIST = <%- JSON.stringify(penjualanBelumLunas.map(p => ({ id: p.id, nomor_order: p.nomor_order, nama: p.pelanggan ? p.pelanggan.nama : '-', sisa: p.total - p.total_dibayar }))) %>;
+        const PENJUALAN_TERPILIH = <%- JSON.stringify(penjualanTerpilih || '') %>;
+
+        const penjualanItems = PENJUALAN_LIST.map(p => ({
+          id: p.id,
+          label: `${p.nomor_order} · ${p.nama} (sisa Rp${Math.round(p.sisa).toLocaleString('id-ID')})`,
+          searchText: `${p.nomor_order} ${p.nama}`,
+          sisa: p.sisa,
+        }));
+
+        function updateSisa(sisa) {
+          document.getElementById('display-sisa').value = 'Rp' + Math.round(sisa || 0).toLocaleString('id-ID');
+          document.getElementById('jumlah_bayar').max = sisa || 0;
         }
-        select.addEventListener('change', updateSisa);
-        updateSisa();
+
+        initCombobox(document.querySelector('[data-name="penjualan_id"]'), penjualanItems, {
+          initialId: PENJUALAN_TERPILIH || null,
+          onSelect(item) { updateSisa(item.sisa); },
+        });
+
+        if (PENJUALAN_TERPILIH) {
+          const found = penjualanItems.find(p => p.id === PENJUALAN_TERPILIH);
+          if (found) updateSisa(found.sisa);
+        }
       </script>
     <% } %>
   </div>
