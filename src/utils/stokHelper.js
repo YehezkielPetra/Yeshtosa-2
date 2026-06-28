@@ -52,8 +52,11 @@ async function ubahStokBahanBaku({ bahanBakuId, cabangId, jumlahPerubahan, refer
 
 /**
  * Mengubah stok produk jadi (Fresh atau Frozen) dan mencatat mutasinya.
+ * izinkanStokNegatif: jika true, stok tetap diizinkan menjadi negatif
+ * (dipakai saat admin sudah mengonfirmasi lewat modal "stok tidak cukup").
+ * Mutasi tetap tercatat dengan jelas di kolom keterangan.
  */
-async function ubahStokProduk({ produkId, cabangId, status, jumlahPerubahan, referensiTipe, referensiId = null, keterangan = null, userId }) {
+async function ubahStokProduk({ produkId, cabangId, status, jumlahPerubahan, referensiTipe, referensiId = null, keterangan = null, userId, izinkanStokNegatif = false }) {
   const { data: existing, error: errFind } = await supabaseAdmin
     .from('stok_produk')
     .select('*')
@@ -66,9 +69,13 @@ async function ubahStokProduk({ produkId, cabangId, status, jumlahPerubahan, ref
   const jumlahSebelum = existing ? Number(existing.jumlah) : 0;
   const jumlahSesudah = jumlahSebelum + Number(jumlahPerubahan);
 
-  if (jumlahSesudah < 0) {
+  if (jumlahSesudah < 0 && !izinkanStokNegatif) {
     throw new Error(`Stok ${status} tidak cukup. Sisa: ${jumlahSebelum}, diminta: ${Math.abs(jumlahPerubahan)}`);
   }
+
+  const keteranganFinal = (jumlahSesudah < 0 && izinkanStokNegatif)
+    ? `${keterangan || ''} [STOK KURANG - dikonfirmasi admin, sisa stok menjadi ${jumlahSesudah}]`.trim()
+    : keterangan;
 
   if (existing) {
     const { error } = await supabaseAdmin
@@ -92,7 +99,7 @@ async function ubahStokProduk({ produkId, cabangId, status, jumlahPerubahan, ref
     jumlah_sesudah: jumlahSesudah,
     referensi_tipe: referensiTipe,
     referensi_id: referensiId,
-    keterangan,
+    keterangan: keteranganFinal,
     dibuat_oleh: userId,
   });
 

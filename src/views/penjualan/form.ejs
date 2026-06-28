@@ -4,6 +4,7 @@
   <div class="panel p-5">
     <form action="/penjualan/tambah" method="POST" class="space-y-5" id="form-penjualan">
       <input type="hidden" name="cabang_id" value="<%= cabangId %>">
+      <input type="hidden" name="konfirmasi_stok_kurang" id="konfirmasi_stok_kurang" value="">
 
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
@@ -15,10 +16,24 @@
           </div>
         </div>
         <div>
+          <label class="label-field">Tanggal Order</label>
+          <input type="date" name="tanggal_order" id="tanggal_order" class="input-field" value="<%= new Date().toISOString().slice(0,10) %>" required>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
           <label class="label-field">Status Produk</label>
           <select name="status_produk" id="status_produk" class="input-field">
             <option value="fresh">Fresh</option>
             <option value="frozen">Frozen</option>
+          </select>
+        </div>
+        <div>
+          <label class="label-field">Metode</label>
+          <select name="metode_ambil_kirim" id="metode_ambil_kirim" class="input-field">
+            <option value="diambil">Diambil</option>
+            <option value="dikirim">Dikirim</option>
           </select>
         </div>
       </div>
@@ -30,23 +45,14 @@
         <button type="button" onclick="tambahItem()" class="text-clay text-xs font-medium mt-2 hover:underline">+ Tambah produk</button>
       </div>
 
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <label class="label-field">Metode</label>
-          <select name="metode_ambil_kirim" id="metode_ambil_kirim" class="input-field">
-            <option value="diambil">Diambil</option>
-            <option value="dikirim">Dikirim</option>
-          </select>
-        </div>
-        <div>
-          <label class="label-field">Promo (opsional)</label>
-          <select name="promo_id" id="promo_id" class="input-field">
-            <option value="">Tanpa promo</option>
-            <% promoList.forEach(p => { %>
-              <option value="<%= p.id %>" data-tipe="<%= p.tipe %>" data-nilai="<%= p.nilai %>"><%= p.nama_promo %> (<%= p.tipe === 'persen' ? p.nilai + '%' : rupiah(p.nilai) %>)</option>
-            <% }) %>
-          </select>
-        </div>
+      <div>
+        <label class="label-field">Promo (opsional)</label>
+        <select name="promo_id" id="promo_id" class="input-field">
+          <option value="">Tanpa promo</option>
+          <% promoList.forEach(p => { %>
+            <option value="<%= p.id %>" data-tipe="<%= p.tipe %>" data-nilai="<%= p.nilai %>"><%= p.nama_promo %> (<%= p.tipe === 'persen' ? p.nilai + '%' : rupiah(p.nilai) %>)</option>
+          <% }) %>
+        </select>
       </div>
 
       <div>
@@ -125,6 +131,7 @@
   const PRODUK_LIST = <%- JSON.stringify(produkList) %>;
   const STOK_LIST = <%- JSON.stringify(stokList) %>;
   const PELANGGAN_LIST = <%- JSON.stringify(pelangganList) %>;
+  const CABANG_ID = <%- JSON.stringify(cabangId) %>;
   let itemCount = 0;
   let kategoriPelangganTerpilih = 'konsumen';
 
@@ -267,4 +274,61 @@
 
   // Mulai dengan 1 item
   tambahItem();
+
+  // --- Validasi stok sebelum submit: tampilkan modal jika kurang ---
+  (function() {
+    const form = document.getElementById('form-penjualan');
+    const konfirmasiInput = document.getElementById('konfirmasi_stok_kurang');
+    let sudahDikonfirmasi = false;
+
+    form.addEventListener('submit', async function(e) {
+      if (sudahDikonfirmasi) return; // sudah dikonfirmasi, lanjutkan submit normal
+
+      const statusProduk = document.getElementById('status_produk').value;
+      const items = [];
+      document.querySelectorAll('.item-row').forEach(row => {
+        const produkId = row.querySelector('.produk-select').value;
+        const jumlah = Number(row.querySelector('.jumlah-input').value) || 0;
+        if (produkId && jumlah > 0) items.push({ produk_id: produkId, jumlah });
+      });
+
+      if (items.length === 0) return; // biarkan validasi required bawaan browser yang menangani
+
+      e.preventDefault();
+
+      try {
+        const res = await fetch('/penjualan/cek-stok', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ items, status_produk: statusProduk, cabang_id: CABANG_ID }),
+        });
+        const data = await res.json();
+
+        if (data.kurang && data.kurang.length > 0) {
+          const details = data.kurang.map(k =>
+            `${k.nama_produk}: tersedia ${k.tersedia}, diminta ${k.diminta} (kurang ${k.kekurangan})`
+          );
+          showConfirmModal({
+            title: 'Stok Tidak Cukup',
+            message: 'Jumlah yang diminta melebihi stok yang tersedia saat ini:',
+            details,
+            confirmLabel: 'Ya, Tetap Lanjutkan',
+            cancelLabel: 'Batal, Saya Sesuaikan',
+            onConfirm() {
+              sudahDikonfirmasi = true;
+              konfirmasiInput.value = '1';
+              form.submit();
+            },
+          });
+        } else {
+          sudahDikonfirmasi = true;
+          form.submit();
+        }
+      } catch (err) {
+        console.error('Gagal cek stok:', err);
+        sudahDikonfirmasi = true;
+        form.submit();
+      }
+    });
+  })();
 </script>

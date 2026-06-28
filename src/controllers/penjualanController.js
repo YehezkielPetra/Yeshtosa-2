@@ -59,6 +59,50 @@ async function formTambahPenjualan(req, res) {
   });
 }
 
+/**
+ * Endpoint AJAX: cek apakah stok produk (Fresh/Frozen) di cabang tertentu
+ * cukup untuk jumlah yang diminta. Dipakai form Tambah Penjualan untuk
+ * menampilkan modal konfirmasi sebelum benar-benar menyimpan transaksi
+ * yang melebihi stok tersedia.
+ * Body/query: items = [{ produk_id, jumlah }], status_produk, cabang_id
+ */
+async function cekStokPenjualan(req, res) {
+  const { items, status_produk, cabang_id } = req.body;
+  if (!items || !Array.isArray(items) || items.length === 0) {
+    return res.json({ kurang: [] });
+  }
+
+  const produkIds = items.map(i => i.produk_id).filter(Boolean);
+  const { data: stokData } = await supabaseAdmin
+    .from('stok_produk')
+    .select('produk_id, jumlah')
+    .eq('cabang_id', cabang_id)
+    .eq('status', status_produk || 'fresh')
+    .in('produk_id', produkIds);
+
+  const { data: produkData } = await supabaseAdmin
+    .from('master_produk').select('id, nama_produk').in('id', produkIds);
+  const namaMap = new Map((produkData || []).map(p => [p.id, p.nama_produk]));
+
+  const stokMap = new Map((stokData || []).map(s => [s.produk_id, Number(s.jumlah)]));
+  const kurang = [];
+  for (const item of items) {
+    const tersedia = stokMap.get(item.produk_id) || 0;
+    const diminta = Number(item.jumlah) || 0;
+    if (diminta > tersedia) {
+      kurang.push({
+        produk_id: item.produk_id,
+        nama_produk: namaMap.get(item.produk_id) || 'Produk',
+        tersedia,
+        diminta,
+        kekurangan: diminta - tersedia,
+      });
+    }
+  }
+
+  res.json({ kurang });
+}
+
 function hargaUntukKategori(produk, kategori) {
   if (kategori === 'reseller' && produk.harga_jual_reseller) return Number(produk.harga_jual_reseller);
   if (kategori === 'stock_point' && produk.harga_jual_stock_point) return Number(produk.harga_jual_stock_point);
@@ -71,6 +115,7 @@ async function simpanTambahPenjualan(req, res) {
     pelanggan_id, cabang_id, status_produk, metode_ambil_kirim,
     status_bayar, total_dibayar, promo_id, diskon_nominal,
     status_ongkir, ongkir_estimasi, ongkir_aktual, ongkir_dibayar_oleh, catatan,
+    tanggal_order, konfirmasi_stok_kurang,
   } = req.body;
 
   let produkIds = req.body.produk_id;
@@ -85,6 +130,7 @@ async function simpanTambahPenjualan(req, res) {
   }
 
   const cabangFinal = cabang_id || user.cabangId;
+  const izinkanStokNegatif = konfirmasi_stok_kurang === '1';
 
   try {
     // Ambil data pelanggan untuk tentukan harga sesuai kategori
@@ -135,6 +181,7 @@ async function simpanTambahPenjualan(req, res) {
       .insert({
         cabang_id: cabangFinal,
         pelanggan_id,
+        tanggal_order: tanggal_order ? new Date(tanggal_order).toISOString() : new Date().toISOString(),
         status_produk: status_produk || 'fresh',
         metode_ambil_kirim: metode_ambil_kirim || 'diambil',
         subtotal: subtotalKeseluruhan,
@@ -164,6 +211,7 @@ async function simpanTambahPenjualan(req, res) {
         produkId: d.produk_id, cabangId: cabangFinal, status: status_produk || 'fresh',
         jumlahPerubahan: -d.jumlah, referensiTipe: 'penjualan', referensiId: penjualan.id,
         keterangan: `Penjualan ${penjualan.nomor_order}`, userId: user.id,
+        izinkanStokNegatif,
       });
     }
 
@@ -225,4 +273,4 @@ async function tandaiSelesai(req, res) {
   res.redirect(`/penjualan/${id}`);
 }
 
-module.exports = { listPenjualan, formTambahPenjualan, simpanTambahPenjualan, detailPenjualan, tandaiSelesai };
+module.exports = { listPenjualan, formTambahPenjualan, simpanTambahPenjualan, detailPenjualan, tandaiSelesai, cekStokPenjualan };
