@@ -31,17 +31,28 @@
         <p class="text-ink/40 text-xs">Metode</p>
         <p class="font-medium capitalize"><%= penjualan.metode_ambil_kirim %></p>
       </div>
+      <% if (penjualan.metode_ambil_kirim === 'dikirim' && (penjualan.tanggal_kirim || penjualan.jam_kirim)) { %>
+        <div>
+          <p class="text-ink/40 text-xs">Tanggal Kirim</p>
+          <p class="font-medium"><%= penjualan.tanggal_kirim ? tanggalIndo(penjualan.tanggal_kirim) : '-' %></p>
+        </div>
+        <div>
+          <p class="text-ink/40 text-xs">Jam Kirim</p>
+          <p class="font-medium"><%= penjualan.jam_kirim ? penjualan.jam_kirim.slice(0,5) : '-' %></p>
+        </div>
+      <% } %>
     </div>
 
     <div class="table-wrap mb-4">
     <table class="table-erp">
-      <thead><tr><th>Produk</th><th>Jumlah</th><th>Harga Satuan</th><th>Subtotal</th></tr></thead>
+      <thead><tr><th>Produk</th><th>Jumlah</th><th>Harga Satuan</th><th>Diskon/pcs</th><th>Subtotal</th></tr></thead>
       <tbody>
         <% (penjualan.penjualan_detail || []).forEach(d => { %>
           <tr>
             <td><%= d.produk ? d.produk.nama_produk : '-' %></td>
             <td><%= d.jumlah %> <%= d.produk ? d.produk.satuan : '' %></td>
             <td><%= rupiah(d.harga_satuan) %></td>
+            <td class="<%= d.diskon_nominal > 0 ? 'text-warn' : 'text-ink/40' %>"><%= d.diskon_nominal > 0 ? '- ' + rupiah(d.diskon_nominal) : '-' %></td>
             <td><%= rupiah(d.subtotal) %></td>
           </tr>
         <% }) %>
@@ -51,7 +62,7 @@
 
     <div class="bg-cream rounded-md p-4 space-y-1.5 text-sm border border-line max-w-xs ml-auto">
       <div class="flex justify-between"><span class="text-ink/60">Subtotal</span><span><%= rupiah(penjualan.subtotal) %></span></div>
-      <div class="flex justify-between"><span class="text-ink/60">Diskon</span><span class="text-warn">- <%= rupiah(penjualan.diskon_nominal) %></span></div>
+      <div class="flex justify-between"><span class="text-ink/60">Total Diskon</span><span class="text-warn">- <%= rupiah(penjualan.diskon_nominal) %></span></div>
       <div class="flex justify-between pt-1.5 border-t border-line"><span class="font-semibold">Total</span><span class="font-display font-semibold text-clay text-lg"><%= rupiah(penjualan.total) %></span></div>
       <div class="flex justify-between text-xs"><span class="text-ink/50">Sudah dibayar</span><span><%= rupiah(penjualan.total_dibayar) %></span></div>
       <div class="flex justify-between text-xs"><span class="text-ink/50">Sisa</span><span class="font-medium"><%= rupiah(penjualan.total - penjualan.total_dibayar) %></span></div>
@@ -73,7 +84,7 @@
       </div>
     <% } %>
 
-    <div class="flex gap-3 mt-5">
+    <div class="flex gap-3 mt-5 flex-wrap">
       <% if (penjualan.status_bayar !== 'lunas') { %>
         <a href="/pembayaran/tambah?penjualan_id=<%= penjualan.id %>" class="btn-primary text-sm">+ Catat Pembayaran</a>
       <% } %>
@@ -82,6 +93,9 @@
           <button type="submit" class="btn-secondary text-sm">Tandai Selesai</button>
         </form>
       <% } %>
+      <a href="/penjualan/<%= penjualan.id %>/edit" class="btn-secondary text-sm">
+        <%= currentUser.role === 'owner' ? 'Edit Transaksi' : 'Ajukan Edit Transaksi' %>
+      </a>
     </div>
   </div>
 
@@ -92,7 +106,7 @@
       <%- include('../partials/empty_state', { message: 'Belum ada pembayaran tercatat.' }) %>
     <% } else { %>
       <div class="table-wrap">
-<table class="table-erp">
+      <table class="table-erp">
         <thead><tr><th>No. Pembayaran</th><th>Tanggal</th><th>Jumlah</th><th>Metode</th><th>Dicatat Oleh</th></tr></thead>
         <tbody>
           <% pembayaranList.forEach(p => { %>
@@ -106,7 +120,7 @@
           <% }) %>
         </tbody>
       </table>
-</div>
+      </div>
     <% } %>
   </div>
 </div>

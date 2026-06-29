@@ -1,0 +1,35 @@
+<% layout('layouts/main') -%>
+
+<div class="panel">
+  <div class="flex items-center justify-between p-4 border-b border-line">
+    <h2 class="text-sm font-semibold text-ink">Daftar Promo</h2>
+    <a href="/master/promo/tambah" class="btn-primary text-sm">+ Tambah Promo</a>
+  </div>
+  <% if (promoList.length === 0) { %>
+    <%- include('../partials/empty_state', { message: 'Belum ada promo.', actionLabel: '+ Tambah Promo', actionUrl: '/master/promo/tambah' }) %>
+  <% } else { %>
+    <div class="table-wrap">
+    <table class="table-erp">
+      <thead><tr><th>Nama Promo</th><th>Jenis</th><th>Bentuk</th><th>Nominal Potongan</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+        <% promoList.forEach(p => { %>
+          <tr>
+            <td class="font-medium"><%= p.nama_promo %></td>
+            <td>
+              <% if (p.tipe_promo === 'potongan_akhir') { %>
+                <span class="pill pill-fresh">Potongan Akhir Nota</span>
+              <% } else { %>
+                <span class="pill pill-frozen">Potongan Ongkir</span>
+              <% } %>
+            </td>
+            <td><span class="pill <%= p.bentuk_potongan === 'persen' ? 'pill-sebagian' : 'pill-lunas' %> capitalize"><%= p.bentuk_potongan === 'persen' ? 'Persen' : 'Flat' %></span></td>
+            <td class="font-medium"><%= p.bentuk_potongan === 'persen' ? p.nominal_potongan + '%' : rupiah(p.nominal_potongan) %></td>
+            <td><span class="pill <%= p.is_aktif ? 'pill-lunas' : 'pill-belum' %>"><%= p.is_aktif ? 'Aktif' : 'Nonaktif' %></span></td>
+            <td><a href="/master/promo/<%= p.id %>/edit" class="text-clay text-sm font-medium hover:underline">Edit</a></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+    </div>
+  <% } %>
+</div>

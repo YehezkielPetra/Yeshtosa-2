@@ -74,4 +74,35 @@ async function simpanEditUser(req, res) {
   }
 }
 
-module.exports = { listUser, formTambahUser, simpanTambahUser, formEditUser, simpanEditUser };
+module.exports = { listUser, formTambahUser, simpanTambahUser, formEditUser, simpanEditUser, permintaanPersetujuanSaya };
+
+/**
+ * Halaman privat Admin: melihat status seluruh pengajuan perubahan
+ * (edit/batal) yang PERNAH diajukan oleh dirinya sendiri ke Owner.
+ * Wajib difilter ketat berdasarkan diajukan_oleh = user yang login,
+ * agar Admin tidak dapat melihat pengajuan Admin lain.
+ */
+async function permintaanPersetujuanSaya(req, res) {
+  const user = req.session.user;
+
+  const { data, error } = await supabaseAdmin
+    .from('approval_queue')
+    .select('*')
+    .eq('diajukan_oleh', user.id)
+    .order('diajukan_pada', { ascending: false });
+  if (error) req.flash('error', 'Gagal memuat data pengajuan: ' + error.message);
+
+  // Lengkapi setiap baris dengan nomor nota (untuk tabel target penjualan)
+  const daftarPengajuan = (data || []).map(a => {
+    let nomorNota = '-';
+    if (a.tabel_target === 'penjualan' && a.data_lama) {
+      nomorNota = a.data_lama.header ? a.data_lama.header.nomor_order : (a.data_lama.nomor_order || '-');
+    }
+    return { ...a, nomorNota };
+  });
+
+  res.render('pengaturan/permintaan_persetujuan', {
+    title: 'Status Persetujuan Saya',
+    daftarPengajuan,
+  });
+}

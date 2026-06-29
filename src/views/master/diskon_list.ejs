@@ -1,0 +1,34 @@
+<% layout('layouts/main') -%>
+
+<div class="panel">
+  <div class="flex items-center justify-between p-4 border-b border-line">
+    <h2 class="text-sm font-semibold text-ink">Daftar Diskon</h2>
+    <a href="/master/diskon/tambah" class="btn-primary text-sm">+ Tambah Diskon</a>
+  </div>
+  <% if (diskonList.length === 0) { %>
+    <%- include('../partials/empty_state', { message: 'Belum ada diskon.', actionLabel: '+ Tambah Diskon', actionUrl: '/master/diskon/tambah' }) %>
+  <% } else { %>
+    <div class="table-wrap">
+    <table class="table-erp">
+      <thead><tr><th>Nama Diskon</th><th>Bentuk</th><th>Nilai</th><th>Dibuat Oleh</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+        <% diskonList.forEach(d => { %>
+          <tr>
+            <td class="font-medium"><%= d.nama_diskon %></td>
+            <td><span class="pill <%= d.bentuk_diskon === 'persen' ? 'pill-sebagian' : 'pill-lunas' %> capitalize"><%= d.bentuk_diskon === 'persen' ? 'Persen' : 'Flat' %></span></td>
+            <td class="font-medium"><%= d.bentuk_diskon === 'persen' ? d.nilai + '%' : rupiah(d.nilai) %></td>
+            <td class="text-xs text-ink/50"><%= d.user ? d.user.nama : '-' %></td>
+            <td><span class="pill <%= d.is_aktif ? 'pill-lunas' : 'pill-belum' %>"><%= d.is_aktif ? 'Aktif' : 'Nonaktif' %></span></td>
+            <td class="whitespace-nowrap">
+              <a href="/master/diskon/<%= d.id %>/edit" class="text-clay text-sm font-medium hover:underline mr-3">Edit</a>
+              <form action="/master/diskon/<%= d.id %>/hapus" method="POST" class="inline" onsubmit="return confirm('Yakin ingin menghapus diskon ini?')">
+                <button type="submit" class="text-warn text-sm font-medium hover:underline">Hapus</button>
+              </form>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+    </div>
+  <% } %>
+</div>

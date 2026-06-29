@@ -1,0 +1,77 @@
+<% layout('layouts/main') -%>
+
+<div class="max-w-lg">
+  <div class="panel p-5">
+    <form action="<%= promo ? `/master/promo/${promo.id}/edit` : '/master/promo/tambah' %>" method="POST" class="space-y-4">
+      <div>
+        <label class="label-field">Nama Promo</label>
+        <input type="text" name="nama_promo" required class="input-field" value="<%= promo ? promo.nama_promo : '' %>" placeholder="Promo Pembukaan Cabang">
+      </div>
+
+      <div>
+        <label class="label-field">Jenis Promo</label>
+        <select name="tipe_promo" class="input-field">
+          <option value="potongan_akhir" <%= promo && promo.tipe_promo === 'potongan_akhir' ? 'selected' : '' %>>Potongan Akhir Nota (memotong total belanja)</option>
+          <option value="potongan_ongkir" <%= promo && promo.tipe_promo === 'potongan_ongkir' ? 'selected' : '' %>>Potongan Ongkir (memotong biaya pengiriman)</option>
+        </select>
+        <p class="text-xs text-ink/40 mt-1">Potongan Akhir Nota memotong total akumulasi belanja di bagian paling bawah nota (bukan harga satuan produk). Potongan Ongkir memotong biaya pengiriman transaksi.</p>
+      </div>
+
+      <div>
+        <label class="label-field">Bentuk Potongan</label>
+        <select name="bentuk_potongan" id="bentuk_potongan" class="input-field">
+          <option value="flat" <%= (!promo || promo.bentuk_potongan === 'flat') ? 'selected' : '' %>>Flat (nominal Rupiah tetap)</option>
+          <option value="persen" <%= promo && promo.bentuk_potongan === 'persen' ? 'selected' : '' %>>Persen (%)</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="label-field" id="label-nominal">Nominal Potongan (Rp)</label>
+        <div class="relative">
+          <input type="number" step="0.01" name="nominal_potongan" id="nominal_potongan" required class="input-field" value="<%= promo ? promo.nominal_potongan : 0 %>">
+          <span id="suffix-persen" class="absolute right-3 top-1/2 -translate-y-1/2 text-ink/40 text-sm hidden">%</span>
+        </div>
+        <p class="text-xs text-ink/40 mt-1" id="hint-nominal">Potongan tetap dalam Rupiah, terlepas dari besar transaksi.</p>
+      </div>
+
+      <% if (promo) { %>
+        <div class="flex items-center gap-2">
+          <input type="checkbox" name="is_aktif" id="is_aktif" <%= promo.is_aktif ? 'checked' : '' %> class="rounded border-line text-clay focus:ring-clay">
+          <label for="is_aktif" class="text-sm text-ink">Promo aktif</label>
+        </div>
+      <% } %>
+
+      <div class="flex gap-3 pt-2">
+        <button type="submit" class="btn-primary">Simpan</button>
+        <a href="/master/promo" class="btn-secondary">Batal</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  const bentukSelect = document.getElementById('bentuk_potongan');
+  const labelNominal = document.getElementById('label-nominal');
+  const suffixPersen = document.getElementById('suffix-persen');
+  const hintNominal = document.getElementById('hint-nominal');
+  const inputNominal = document.getElementById('nominal_potongan');
+
+  function updateTampilanBentuk() {
+    if (bentukSelect.value === 'persen') {
+      labelNominal.textContent = 'Nominal Potongan (%)';
+      suffixPersen.classList.remove('hidden');
+      hintNominal.textContent = 'Potongan berupa persentase dari basis yang dipotong (0-100).';
+      inputNominal.max = 100;
+      inputNominal.min = 0;
+    } else {
+      labelNominal.textContent = 'Nominal Potongan (Rp)';
+      suffixPersen.classList.add('hidden');
+      hintNominal.textContent = 'Potongan tetap dalam Rupiah, terlepas dari besar transaksi.';
+      inputNominal.removeAttribute('max');
+      inputNominal.min = 0;
+    }
+  }
+
+  bentukSelect.addEventListener('change', updateTampilanBentuk);
+  updateTampilanBentuk();
+</script>

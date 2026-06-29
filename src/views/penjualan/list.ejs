@@ -21,8 +21,8 @@
     <%- include('../partials/empty_state', { message: 'Belum ada transaksi penjualan.', actionLabel: '+ Penjualan Baru', actionUrl: '/penjualan/tambah' }) %>
   <% } else { %>
     <div class="table-wrap">
-<table class="table-erp">
-      <thead><tr><th>No. Order</th><th>Tanggal</th><th>Pelanggan</th><th>Cabang</th><th>Produk</th><th>Total</th><th>Bayar</th><th>Selesai</th></tr></thead>
+    <table class="table-erp">
+      <thead><tr><th>No. Order</th><th>Tanggal</th><th>Pelanggan</th><th>Cabang</th><th>Produk</th><th>Total</th><th>Bayar</th><th>Selesai</th><th></th></tr></thead>
       <tbody>
         <% penjualanList.forEach(p => { %>
           <tr class="cursor-pointer" onclick="window.location='/penjualan/<%= p.id %>'">
@@ -33,11 +33,16 @@
             <td><%- include('../partials/status_produk_pill', { status: p.status_produk }) %></td>
             <td class="font-medium"><%= rupiah(p.total) %></td>
             <td><%- include('../partials/status_bayar_pill', { status: p.status_bayar }) %></td>
-            <td><%= p.is_selesai ? '✅' : '⏳' %></td>
+            <td><span class="pill <%= p.is_selesai ? 'pill-lunas' : 'pill-pending' %>"><%= p.is_selesai ? 'Selesai' : 'Berjalan' %></span></td>
+            <td onclick="event.stopPropagation()">
+              <a href="/penjualan/<%= p.id %>/edit" class="text-clay text-sm font-medium hover:underline">
+                <%= currentUser.role === 'owner' ? 'Edit' : 'Ajukan Edit' %>
+              </a>
+            </td>
           </tr>
         <% }) %>
       </tbody>
     </table>
-</div>
+    </div>
   <% } %>
 </div>

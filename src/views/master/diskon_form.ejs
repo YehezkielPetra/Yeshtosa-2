@@ -1,0 +1,66 @@
+<% layout('layouts/main') -%>
+
+<div class="max-w-lg">
+  <div class="panel p-5">
+    <form action="<%= diskon ? `/master/diskon/${diskon.id}/edit` : '/master/diskon/tambah' %>" method="POST" class="space-y-4">
+      <div>
+        <label class="label-field">Nama Diskon</label>
+        <input type="text" name="nama_diskon" required class="input-field" value="<%= diskon ? diskon.nama_diskon : '' %>" placeholder="Diskon Pelanggan Setia">
+      </div>
+
+      <div>
+        <label class="label-field">Jenis Diskon</label>
+        <select name="bentuk_diskon" id="bentuk_diskon" class="input-field">
+          <option value="flat" <%= (!diskon || diskon.bentuk_diskon === 'flat') ? 'selected' : '' %>>Flat (nominal tetap)</option>
+          <option value="persen" <%= diskon && diskon.bentuk_diskon === 'persen' ? 'selected' : '' %>>Persentase (%)</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="label-field" id="label-nilai">Nilai Diskon (Rp)</label>
+        <div class="relative">
+          <input type="number" step="0.01" name="nilai" id="nilai" required class="input-field" value="<%= diskon ? diskon.nilai : 0 %>">
+          <span id="suffix-persen" class="absolute right-3 top-1/2 -translate-y-1/2 text-ink/40 text-sm hidden">%</span>
+        </div>
+        <p class="text-xs text-ink/40 mt-1" id="hint-nilai">Misal Rp10.000 dipotong langsung dari harga satuan produk.</p>
+      </div>
+
+      <% if (diskon) { %>
+        <div class="flex items-center gap-2">
+          <input type="checkbox" name="is_aktif" id="is_aktif" <%= diskon.is_aktif ? 'checked' : '' %> class="rounded border-line text-clay focus:ring-clay">
+          <label for="is_aktif" class="text-sm text-ink">Diskon aktif</label>
+        </div>
+      <% } %>
+
+      <div class="flex gap-3 pt-2">
+        <button type="submit" class="btn-primary">Simpan</button>
+        <a href="/master/diskon" class="btn-secondary">Batal</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  const bentukSelect = document.getElementById('bentuk_diskon');
+  const labelNilai = document.getElementById('label-nilai');
+  const suffixPersen = document.getElementById('suffix-persen');
+  const hintNilai = document.getElementById('hint-nilai');
+  const inputNilai = document.getElementById('nilai');
+
+  function updateTampilanBentuk() {
+    if (bentukSelect.value === 'persen') {
+      labelNilai.textContent = 'Nilai Diskon (%)';
+      suffixPersen.classList.remove('hidden');
+      hintNilai.textContent = 'Misal 10% dipotong dari harga satuan produk per pcs.';
+      inputNilai.max = 100;
+    } else {
+      labelNilai.textContent = 'Nilai Diskon (Rp)';
+      suffixPersen.classList.add('hidden');
+      hintNilai.textContent = 'Misal Rp10.000 dipotong langsung dari harga satuan produk.';
+      inputNilai.removeAttribute('max');
+    }
+  }
+
+  bentukSelect.addEventListener('change', updateTampilanBentuk);
+  updateTampilanBentuk();
+</script>

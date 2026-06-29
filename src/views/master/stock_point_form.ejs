@@ -1,11 +1,17 @@
 <% layout('layouts/main') -%>
+<% const isReadOnly = currentUser.role === 'admin'; %>
 
 <div class="max-w-lg">
+  <% if (isReadOnly) { %>
+    <div class="rounded-md bg-cream border border-line text-ink/60 px-4 py-2.5 text-sm mb-4">
+      Anda hanya dapat melihat data ini. Hubungi Owner untuk menambah atau mengubah data master.
+    </div>
+  <% } %>
   <div class="panel p-5">
     <form action="<%= stockPoint ? `/master/stock-point/${stockPoint.id}/edit` : '/master/stock-point/tambah' %>" method="POST" class="space-y-4">
       <div>
         <label class="label-field">Pelanggan Terkait (Kategori Stock Point)</label>
-        <select name="pelanggan_id" required class="input-field">
+        <select name="pelanggan_id" required class="input-field" <%= isReadOnly ? 'disabled' : '' %>>
           <option value="">Pilih pelanggan...</option>
           <% pelangganList.forEach(p => { %>
             <option value="<%= p.id %>" <%= stockPoint && stockPoint.pelanggan_id === p.id ? 'selected' : '' %>><%= p.nomor_pelanggan %> · <%= p.nama %></option>
@@ -17,31 +23,33 @@
       </div>
       <div>
         <label class="label-field">Nama Lokasi</label>
-        <input type="text" name="nama_lokasi" required class="input-field" value="<%= stockPoint ? stockPoint.nama_lokasi : '' %>" placeholder="Toko Berkah Jaya">
+        <input type="text" name="nama_lokasi" required class="input-field" value="<%= stockPoint ? stockPoint.nama_lokasi : '' %>" placeholder="Toko Berkah Jaya" <%= isReadOnly ? 'readonly' : '' %>>
       </div>
       <div>
         <label class="label-field">Alamat</label>
-        <textarea name="alamat" rows="2" class="input-field"><%= stockPoint && stockPoint.alamat ? stockPoint.alamat : '' %></textarea>
+        <textarea name="alamat" rows="2" class="input-field" <%= isReadOnly ? 'readonly' : '' %>><%= stockPoint && stockPoint.alamat ? stockPoint.alamat : '' %></textarea>
       </div>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label class="label-field">Nama PIC</label>
-          <input type="text" name="pic_nama" class="input-field" value="<%= stockPoint ? stockPoint.pic_nama : '' %>">
+          <input type="text" name="pic_nama" class="input-field" value="<%= stockPoint ? stockPoint.pic_nama : '' %>" <%= isReadOnly ? 'readonly' : '' %>>
         </div>
         <div>
           <label class="label-field">No. HP PIC</label>
-          <input type="text" name="pic_hp" class="input-field" value="<%= stockPoint ? stockPoint.pic_hp : '' %>">
+          <input type="text" name="pic_hp" class="input-field" value="<%= stockPoint ? stockPoint.pic_hp : '' %>" <%= isReadOnly ? 'readonly' : '' %>>
         </div>
       </div>
       <% if (stockPoint) { %>
         <div class="flex items-center gap-2">
-          <input type="checkbox" name="is_aktif" id="is_aktif" <%= stockPoint.is_aktif ? 'checked' : '' %> class="rounded border-line text-clay focus:ring-clay">
+          <input type="checkbox" name="is_aktif" id="is_aktif" <%= stockPoint.is_aktif ? 'checked' : '' %> class="rounded border-line text-clay focus:ring-clay" <%= isReadOnly ? 'disabled' : '' %>>
           <label for="is_aktif" class="text-sm text-ink">Stock point aktif</label>
         </div>
       <% } %>
       <div class="flex gap-3 pt-2">
-        <button type="submit" class="btn-primary">Simpan</button>
-        <a href="/master/stock-point" class="btn-secondary">Batal</a>
+        <% if (!isReadOnly) { %>
+          <button type="submit" class="btn-primary">Simpan</button>
+        <% } %>
+        <a href="/master/stock-point" class="btn-secondary">Kembali</a>
       </div>
     </form>
   </div>

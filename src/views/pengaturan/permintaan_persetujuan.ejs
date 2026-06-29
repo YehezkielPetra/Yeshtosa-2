@@ -1,0 +1,37 @@
+<% layout('layouts/main') -%>
+
+<div class="panel">
+  <div class="p-4 border-b border-line">
+    <h2 class="text-sm font-semibold text-ink">Status Persetujuan Saya</h2>
+    <p class="text-xs text-ink/40 mt-0.5">Riwayat permohonan edit/pembatalan transaksi yang Anda ajukan ke Owner.</p>
+  </div>
+  <% if (daftarPengajuan.length === 0) { %>
+    <%- include('../partials/empty_state', { message: 'Anda belum pernah mengajukan perubahan transaksi.' }) %>
+  <% } else { %>
+    <div class="table-wrap">
+    <table class="table-erp">
+      <thead><tr><th>No. Nota</th><th>Jenis Pengajuan</th><th>Tanggal Pengajuan</th><th>Alasan</th><th>Status</th><th>Catatan Owner</th></tr></thead>
+      <tbody>
+        <% daftarPengajuan.forEach(a => { %>
+          <tr>
+            <td class="font-mono text-xs"><%= a.nomorNota %></td>
+            <td><span class="pill pill-fresh capitalize"><%= a.jenis_perubahan %></span></td>
+            <td class="text-xs"><%= tanggalIndo(a.diajukan_pada, true) %></td>
+            <td class="text-xs"><%= a.alasan || '-' %></td>
+            <td>
+              <% if (a.status === 'pending') { %>
+                <span class="pill pill-pending">Menunggu Owner</span>
+              <% } else if (a.status === 'approved') { %>
+                <span class="pill pill-approved">Disetujui</span>
+              <% } else { %>
+                <span class="pill pill-rejected">Ditolak</span>
+              <% } %>
+            </td>
+            <td class="text-xs text-ink/50"><%= a.catatan_reviewer || '-' %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+    </div>
+  <% } %>
+</div>

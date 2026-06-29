@@ -1,35 +1,43 @@
 <% layout('layouts/main') -%>
+<% const isReadOnly = currentUser.role === 'admin'; %>
 
 <div class="max-w-lg">
+  <% if (isReadOnly) { %>
+    <div class="rounded-md bg-cream border border-line text-ink/60 px-4 py-2.5 text-sm mb-4">
+      Anda hanya dapat melihat data ini. Hubungi Owner untuk menambah atau mengubah data master.
+    </div>
+  <% } %>
   <div class="panel p-5">
     <form action="<%= bahan ? `/master/bahan-baku/${bahan.id}/edit` : '/master/bahan-baku/tambah' %>" method="POST" class="space-y-4">
       <div>
         <label class="label-field">Kode Bahan</label>
-        <input type="text" name="kode_bahan" required class="input-field" value="<%= bahan ? bahan.kode_bahan : '' %>" placeholder="BHN-001">
+        <input type="text" name="kode_bahan" required class="input-field" value="<%= bahan ? bahan.kode_bahan : '' %>" placeholder="BHN-001" <%= isReadOnly ? 'readonly' : '' %>>
       </div>
       <div>
         <label class="label-field">Nama Bahan</label>
-        <input type="text" name="nama_bahan" required class="input-field" value="<%= bahan ? bahan.nama_bahan : '' %>" placeholder="Tuna Segar">
+        <input type="text" name="nama_bahan" required class="input-field" value="<%= bahan ? bahan.nama_bahan : '' %>" placeholder="Tuna Segar" <%= isReadOnly ? 'readonly' : '' %>>
       </div>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label class="label-field">Satuan</label>
-          <input type="text" name="satuan" required class="input-field" value="<%= bahan ? bahan.satuan : '' %>" placeholder="kg">
+          <input type="text" name="satuan" required class="input-field" value="<%= bahan ? bahan.satuan : '' %>" placeholder="kg" <%= isReadOnly ? 'readonly' : '' %>>
         </div>
         <div>
           <label class="label-field">Stok Minimum</label>
-          <input type="number" step="0.01" name="stok_minimum" class="input-field" value="<%= bahan ? bahan.stok_minimum : 0 %>">
+          <input type="number" step="0.01" name="stok_minimum" class="input-field" value="<%= bahan ? bahan.stok_minimum : 0 %>" <%= isReadOnly ? 'readonly' : '' %>>
         </div>
       </div>
       <% if (bahan) { %>
         <div class="flex items-center gap-2">
-          <input type="checkbox" name="is_aktif" id="is_aktif" <%= bahan.is_aktif ? 'checked' : '' %> class="rounded border-line text-clay focus:ring-clay">
+          <input type="checkbox" name="is_aktif" id="is_aktif" <%= bahan.is_aktif ? 'checked' : '' %> class="rounded border-line text-clay focus:ring-clay" <%= isReadOnly ? 'disabled' : '' %>>
           <label for="is_aktif" class="text-sm text-ink">Bahan baku aktif</label>
         </div>
       <% } %>
       <div class="flex gap-3 pt-2">
-        <button type="submit" class="btn-primary">Simpan</button>
-        <a href="/master/bahan-baku" class="btn-secondary">Batal</a>
+        <% if (!isReadOnly) { %>
+          <button type="submit" class="btn-primary">Simpan</button>
+        <% } %>
+        <a href="/master/bahan-baku" class="btn-secondary">Kembali</a>
       </div>
     </form>
   </div>

@@ -3,22 +3,89 @@
 <div class="space-y-5">
   <!-- Stat cards -->
   <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-    <div class="stat-card">
-      <p class="text-xs uppercase tracking-wide text-ink/50 font-semibold">Saldo Kas</p>
-      <p class="text-2xl font-display font-semibold text-ink"><%= rupiah(saldoKas) %></p>
-    </div>
-    <div class="stat-card">
-      <p class="text-xs uppercase tracking-wide text-ink/50 font-semibold">Omzet Bulan Ini</p>
-      <p class="text-2xl font-display font-semibold text-clay"><%= rupiah(totalOmzetBulanIni) %></p>
-    </div>
+    <% if (currentUser.role !== 'admin') { %>
+      <div class="stat-card">
+        <p class="text-xs uppercase tracking-wide text-ink/50 font-semibold">Saldo Kas</p>
+        <p class="text-2xl font-display font-semibold text-ink"><%= rupiah(saldoKas) %></p>
+      </div>
+      <div class="stat-card">
+        <p class="text-xs uppercase tracking-wide text-ink/50 font-semibold">Omzet Bulan Ini</p>
+        <p class="text-2xl font-display font-semibold text-clay"><%= rupiah(totalOmzetBulanIni) %></p>
+      </div>
+    <% } %>
     <div class="stat-card">
       <p class="text-xs uppercase tracking-wide text-ink/50 font-semibold">Pesanan Hari Ini</p>
-      <p class="text-2xl font-display font-semibold text-ink"><%= pesananHariIni.length %></p>
+      <p class="text-2xl font-display font-semibold text-ink"><%= totalPesananHariIni %></p>
     </div>
-    <div class="stat-card">
-      <p class="text-xs uppercase tracking-wide text-ink/50 font-semibold">Total Piutang</p>
-      <p class="text-2xl font-display font-semibold text-warn"><%= rupiah(totalPiutang) %></p>
+    <% if (currentUser.role !== 'admin') { %>
+      <div class="stat-card">
+        <p class="text-xs uppercase tracking-wide text-ink/50 font-semibold">Total Piutang</p>
+        <p class="text-2xl font-display font-semibold text-warn"><%= rupiah(totalPiutang) %></p>
+      </div>
+    <% } %>
+  </div>
+
+  <!-- Pesanan Hari Ini: ditampilkan sebagai card per pelanggan -->
+  <div class="panel p-4">
+    <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+      <h2 class="text-sm font-semibold text-ink">Pesanan Hari Ini</h2>
+      <a href="/penjualan/tambah" class="btn-primary text-xs px-3 py-1.5">+ Penjualan Baru</a>
     </div>
+
+    <% if (pesananHariIni.length === 0) { %>
+      <%- include('../partials/empty_state', { message: 'Belum ada pesanan hari ini.' }) %>
+    <% } else { %>
+      <!-- Ringkasan rekap di luar kumpulan card -->
+      <div class="mb-4 p-3 bg-cream rounded-md border border-line text-sm space-y-2.5">
+        <div class="flex flex-wrap gap-4">
+          <div class="flex items-center gap-2">
+            <span class="text-ink/50">Total Pesanan Hari Ini</span>
+            <span class="font-display font-semibold text-clay text-lg"><%= totalPesananHariIni %></span>
+          </div>
+          <div class="w-px bg-line"></div>
+          <div class="flex items-center gap-2">
+            <span class="text-ink/50">Total Item Terjual</span>
+            <span class="font-display font-semibold text-sage-dark text-lg"><%= totalItemHariIni %></span>
+          </div>
+        </div>
+        <% if (rincianItemHariIni && rincianItemHariIni.length > 0) { %>
+          <div class="flex flex-wrap gap-2 pt-2 border-t border-line/70">
+            <% rincianItemHariIni.forEach(item => { %>
+              <span class="pill pill-fresh">
+                <%= item.nama %> <span class="font-semibold">×<%= item.jumlah %></span>
+              </span>
+            <% }) %>
+          </div>
+        <% } %>
+      </div>
+
+      <!-- Grid card per pesanan -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <% pesananHariIni.forEach(p => { %>
+          <div class="border border-line rounded-md p-3 hover:border-clay/40 transition-colors cursor-pointer" onclick="window.location='/penjualan/<%= p.id %>'">
+            <div class="flex items-center justify-between mb-2">
+              <p class="font-medium text-ink truncate"><%= p.pelanggan ? p.pelanggan.nama : '-' %></p>
+              <%- include('../partials/status_bayar_pill', { status: p.status_bayar }) %>
+            </div>
+            <p class="font-mono text-xs text-ink/40 mb-2"><%= p.nomor_order %></p>
+
+            <div class="space-y-1 mb-2">
+              <% (p.penjualan_detail || []).forEach(d => { %>
+                <div class="flex justify-between text-xs text-ink/60">
+                  <span class="truncate"><%= d.produk ? d.produk.nama_produk : '-' %></span>
+                  <span class="font-medium shrink-0 ml-2">×<%= d.jumlah %></span>
+                </div>
+              <% }) %>
+            </div>
+
+            <div class="flex items-center justify-between pt-2 border-t border-line/70">
+              <span class="text-xs text-ink/40"><%= p.is_selesai ? 'Selesai' : 'Berjalan' %></span>
+              <span class="font-display font-semibold text-clay"><%= rupiah(p.total) %></span>
+            </div>
+          </div>
+        <% }) %>
+      </div>
+    <% } %>
   </div>
 
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
@@ -50,55 +117,30 @@
       <a href="/stok" class="text-clay text-sm font-medium mt-3 inline-block hover:underline">Lihat detail stok →</a>
     </div>
 
-    <!-- Pesanan hari ini -->
-    <div class="panel p-4 lg:col-span-2">
-      <div class="flex items-center justify-between mb-3">
-        <h2 class="text-sm font-semibold text-ink">Pesanan Hari Ini</h2>
-        <a href="/penjualan/tambah" class="btn-primary text-xs px-3 py-1.5">+ Penjualan Baru</a>
+    <!-- Piutang: data finansial, sembunyikan dari admin -->
+    <% if (currentUser.role !== 'admin') { %>
+      <div class="panel p-4 lg:col-span-2">
+        <h2 class="text-sm font-semibold text-ink mb-3">Daftar Piutang</h2>
+        <% if (piutang.length === 0) { %>
+          <%- include('../partials/empty_state', { message: 'Tidak ada piutang saat ini.' }) %>
+        <% } else { %>
+          <div class="table-wrap">
+          <table class="table-erp">
+            <thead><tr><th>Pelanggan</th><th>Total Tagihan</th><th>Sudah Dibayar</th><th>Sisa</th></tr></thead>
+            <tbody>
+              <% piutang.forEach(p => { %>
+                <tr>
+                  <td><%= p.pelanggan ? p.pelanggan.nama : '-' %></td>
+                  <td><%= rupiah(p.total) %></td>
+                  <td><%= rupiah(p.total_dibayar) %></td>
+                  <td class="font-medium text-warn"><%= rupiah(p.total - p.total_dibayar) %></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+          </div>
+        <% } %>
       </div>
-      <% if (pesananHariIni.length === 0) { %>
-        <%- include('../partials/empty_state', { message: 'Belum ada pesanan hari ini.' }) %>
-      <% } else { %>
-        <div class="table-wrap">
-<table class="table-erp">
-          <thead><tr><th>Order</th><th>Pelanggan</th><th>Total</th><th>Status</th></tr></thead>
-          <tbody>
-            <% pesananHariIni.forEach(p => { %>
-              <tr class="cursor-pointer" onclick="window.location='/penjualan/<%= p.id %>'">
-                <td class="font-mono text-xs"><%= p.nomor_order %></td>
-                <td><%= p.pelanggan ? p.pelanggan.nama : '-' %></td>
-                <td><%= rupiah(p.total) %></td>
-                <td><%- include('../partials/status_bayar_pill', { status: p.status_bayar }) %></td>
-              </tr>
-            <% }) %>
-          </tbody>
-        </table>
-</div>
-      <% } %>
-    </div>
-  </div>
-
-  <!-- Piutang -->
-  <div class="panel p-4">
-    <h2 class="text-sm font-semibold text-ink mb-3">Daftar Piutang</h2>
-    <% if (piutang.length === 0) { %>
-      <%- include('../partials/empty_state', { message: 'Tidak ada piutang saat ini.' }) %>
-    <% } else { %>
-      <div class="table-wrap">
-<table class="table-erp">
-        <thead><tr><th>Pelanggan</th><th>Total Tagihan</th><th>Sudah Dibayar</th><th>Sisa</th></tr></thead>
-        <tbody>
-          <% piutang.forEach(p => { %>
-            <tr>
-              <td><%= p.pelanggan ? p.pelanggan.nama : '-' %></td>
-              <td><%= rupiah(p.total) %></td>
-              <td><%= rupiah(p.total_dibayar) %></td>
-              <td class="font-medium text-warn"><%= rupiah(p.total - p.total_dibayar) %></td>
-            </tr>
-          <% }) %>
-        </tbody>
-      </table>
-</div>
     <% } %>
   </div>
 </div>

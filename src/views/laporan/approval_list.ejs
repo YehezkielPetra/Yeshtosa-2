@@ -14,36 +14,66 @@
   <% if (approvalList.length === 0) { %>
     <%- include('../partials/empty_state', { message: 'Tidak ada pengajuan dengan status ini.' }) %>
   <% } else { %>
-    <div class="table-wrap">
-<table class="table-erp">
-      <thead><tr><th>Tabel</th><th>Jenis</th><th>Alasan</th><th>Diajukan Oleh</th><th>Tanggal</th><th>Status</th><th></th></tr></thead>
-      <tbody>
-        <% approvalList.forEach(a => { %>
-          <tr>
-            <td class="font-mono text-xs"><%= a.tabel_target %></td>
-            <td class="capitalize"><%= a.jenis_perubahan %></td>
-            <td class="text-xs"><%= a.alasan || '-' %></td>
-            <td><%= a.diajukan ? a.diajukan.nama : '-' %></td>
-            <td class="text-xs"><%= tanggalIndo(a.diajukan_pada, true) %></td>
-            <td><span class="pill pill-<%= a.status %> capitalize"><%= a.status %></span></td>
-            <td>
-              <% if (a.status === 'pending') { %>
-                <div class="flex gap-2">
-                  <form action="/laporan/approval/<%= a.id %>/setuju" method="POST">
-                    <button type="submit" class="text-sage-dark text-xs font-medium hover:underline">Setujui</button>
-                  </form>
-                  <form action="/laporan/approval/<%= a.id %>/tolak" method="POST" onsubmit="return confirmTolak(this)">
-                    <input type="hidden" name="catatan_reviewer" class="catatan-input">
-                    <button type="submit" class="text-warn text-xs font-medium hover:underline">Tolak</button>
-                  </form>
+    <div class="divide-y divide-line">
+      <% approvalList.forEach(a => { %>
+        <% const isPenjualan = a.tabel_target === 'penjualan'; %>
+        <% const nomorNota = isPenjualan ? (a.data_lama.header ? a.data_lama.header.nomor_order : a.data_lama.nomor_order) : null; %>
+        <div class="p-4">
+          <div class="flex items-center justify-between gap-3 flex-wrap">
+            <div class="flex items-center gap-3">
+              <span class="font-mono text-xs text-ink/50"><%= a.tabel_target %></span>
+              <% if (nomorNota) { %><span class="font-mono text-xs font-medium text-clay"><%= nomorNota %></span><% } %>
+              <span class="pill pill-fresh capitalize"><%= a.jenis_perubahan %></span>
+              <span class="pill pill-<%= a.status %> capitalize"><%= a.status %></span>
+            </div>
+            <div class="text-xs text-ink/40">
+              <%= a.diajukan ? a.diajukan.nama : '-' %> · <%= tanggalIndo(a.diajukan_pada, true) %>
+            </div>
+          </div>
+
+          <% if (a.alasan) { %>
+            <p class="text-xs text-ink/50 mt-1.5">Alasan: <%= a.alasan %></p>
+          <% } %>
+
+          <% if (isPenjualan && a.jenis_perubahan === 'edit' && a.data_baru && a.data_baru.header) { %>
+            <% const lamaHeader = a.data_lama.header || a.data_lama; %>
+            <% const baruHeader = a.data_baru.header; %>
+            <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+              <div class="border border-line rounded-md p-3 bg-cream/50">
+                <p class="text-xs font-semibold uppercase text-ink/40 mb-2">Data Lama</p>
+                <div class="space-y-1">
+                  <div class="flex justify-between"><span class="text-ink/50">Total</span><span class="font-medium"><%= rupiah(lamaHeader.total) %></span></div>
+                  <div class="flex justify-between"><span class="text-ink/50">Diskon</span><span><%= rupiah(lamaHeader.diskon_nominal) %></span></div>
+                  <div class="flex justify-between"><span class="text-ink/50">Status Bayar</span><span class="capitalize"><%= lamaHeader.status_bayar %></span></div>
+                  <div class="flex justify-between"><span class="text-ink/50">Metode</span><span class="capitalize"><%= lamaHeader.metode_ambil_kirim %></span></div>
                 </div>
-              <% } %>
-            </td>
-          </tr>
-        <% }) %>
-      </tbody>
-    </table>
-</div>
+              </div>
+              <div class="border border-clay/30 rounded-md p-3 bg-clay/5">
+                <p class="text-xs font-semibold uppercase text-clay-dark mb-2">Usulan Baru</p>
+                <div class="space-y-1">
+                  <div class="flex justify-between"><span class="text-ink/50">Total</span><span class="font-medium <%= lamaHeader.total !== baruHeader.total ? 'text-clay-dark' : '' %>"><%= rupiah(baruHeader.total) %></span></div>
+                  <div class="flex justify-between"><span class="text-ink/50">Diskon</span><span class="<%= lamaHeader.diskon_nominal !== baruHeader.diskon_nominal ? 'text-clay-dark' : '' %>"><%= rupiah(baruHeader.diskon_nominal) %></span></div>
+                  <div class="flex justify-between"><span class="text-ink/50">Status Bayar</span><span class="capitalize <%= lamaHeader.status_bayar !== baruHeader.status_bayar ? 'text-clay-dark' : '' %>"><%= baruHeader.status_bayar %></span></div>
+                  <div class="flex justify-between"><span class="text-ink/50">Metode</span><span class="capitalize <%= lamaHeader.metode_ambil_kirim !== baruHeader.metode_ambil_kirim ? 'text-clay-dark' : '' %>"><%= baruHeader.metode_ambil_kirim %></span></div>
+                </div>
+              </div>
+            </div>
+          <% } %>
+
+          <% if (a.status === 'pending') { %>
+            <div class="flex gap-3 mt-3">
+              <form action="/laporan/approval/<%= a.id %>/setuju" method="POST">
+                <button type="submit" class="text-sage-dark text-sm font-medium hover:underline">Setujui Perubahan</button>
+              </form>
+              <form action="/laporan/approval/<%= a.id %>/tolak" method="POST" onsubmit="return confirmTolak(this)">
+                <input type="hidden" name="catatan_reviewer" class="catatan-input">
+                <button type="submit" class="text-warn text-sm font-medium hover:underline">Tolak</button>
+              </form>
+            </div>
+          <% } %>
+        </div>
+      <% }) %>
+    </div>
   <% } %>
 </div>
 

@@ -1,8 +1,14 @@
 <% layout('layouts/main') -%>
 
 <div class="max-w-3xl">
+  <% if (typeof isAdminPengajuan !== 'undefined' && isAdminPengajuan) { %>
+    <div class="rounded-md bg-clay/10 border border-clay/30 text-clay-dark px-4 py-2.5 text-sm mb-4">
+      Perubahan yang Anda simpan tidak langsung berlaku. Permohonan akan masuk antrean persetujuan dan menunggu keputusan Owner.
+    </div>
+  <% } %>
+
   <div class="panel p-5">
-    <form action="/penjualan/tambah" method="POST" class="space-y-5" id="form-penjualan">
+    <form action="<%= (typeof isEdit !== 'undefined' && isEdit) ? `/penjualan/${penjualan.id}/edit` : '/penjualan/tambah' %>" method="POST" class="space-y-5" id="form-penjualan">
       <input type="hidden" name="cabang_id" value="<%= cabangId %>">
       <input type="hidden" name="konfirmasi_stok_kurang" id="konfirmasi_stok_kurang" value="">
 
@@ -17,7 +23,8 @@
         </div>
         <div>
           <label class="label-field">Tanggal Order</label>
-          <input type="date" name="tanggal_order" id="tanggal_order" class="input-field" value="<%= new Date().toISOString().slice(0,10) %>" required>
+          <input type="date" name="tanggal_order" id="tanggal_order" class="input-field"
+            value="<%= (typeof penjualan !== 'undefined' && penjualan) ? new Date(penjualan.tanggal_order).toISOString().slice(0,10) : new Date().toISOString().slice(0,10) %>" required>
         </div>
       </div>
 
@@ -25,45 +32,59 @@
         <div>
           <label class="label-field">Status Produk</label>
           <select name="status_produk" id="status_produk" class="input-field">
-            <option value="fresh">Fresh</option>
-            <option value="frozen">Frozen</option>
+            <option value="fresh" <%= (typeof penjualan !== 'undefined' && penjualan && penjualan.status_produk === 'fresh') ? 'selected' : '' %>>Fresh</option>
+            <option value="frozen" <%= (typeof penjualan !== 'undefined' && penjualan && penjualan.status_produk === 'frozen') ? 'selected' : '' %>>Frozen</option>
           </select>
         </div>
         <div>
           <label class="label-field">Metode</label>
           <select name="metode_ambil_kirim" id="metode_ambil_kirim" class="input-field">
-            <option value="diambil">Diambil</option>
-            <option value="dikirim">Dikirim</option>
+            <option value="diambil" <%= (typeof penjualan !== 'undefined' && penjualan && penjualan.metode_ambil_kirim === 'diambil') ? 'selected' : '' %>>Diambil</option>
+            <option value="dikirim" <%= (typeof penjualan !== 'undefined' && penjualan && penjualan.metode_ambil_kirim === 'dikirim') ? 'selected' : '' %>>Dikirim</option>
           </select>
         </div>
       </div>
 
-      <!-- Item produk -->
+      <!-- Logistik pengiriman: hanya tampil/aktif jika metode = Dikirim -->
+      <div id="logistik-kirim" class="grid grid-cols-1 sm:grid-cols-2 gap-4 hidden">
+        <div>
+          <label class="label-field">Tanggal Kirim</label>
+          <input type="date" name="tanggal_kirim" id="tanggal_kirim" class="input-field"
+            value="<%= (typeof penjualan !== 'undefined' && penjualan && penjualan.tanggal_kirim) ? penjualan.tanggal_kirim : '' %>">
+        </div>
+        <div>
+          <label class="label-field">Jam Kirim</label>
+          <input type="time" name="jam_kirim" id="jam_kirim" class="input-field"
+            value="<%= (typeof penjualan !== 'undefined' && penjualan && penjualan.jam_kirim) ? penjualan.jam_kirim.slice(0,5) : '' %>">
+        </div>
+      </div>
+
+      <!-- Item produk dengan diskon PER ITEM -->
       <div>
         <label class="label-field">Item Produk</label>
         <div id="item-container" class="space-y-2"></div>
         <button type="button" onclick="tambahItem()" class="text-clay text-xs font-medium mt-2 hover:underline">+ Tambah produk</button>
+        <p class="text-xs text-ink/40 mt-2">Setiap produk dapat memiliki diskon yang berbeda — pilih jenisnya (Flat atau Persen) lalu masukkan nilainya. Misal diskon Rp3.000/pcs untuk Gogos Besar dan diskon 10% untuk Gogos Kecil.</p>
       </div>
 
       <div>
-        <label class="label-field">Promo (opsional)</label>
-        <select name="promo_id" id="promo_id" class="input-field">
+        <label class="label-field">Promo Potongan Akhir Nota (opsional)</label>
+        <select name="promo_v2_id" id="promo_v2_id" class="input-field">
           <option value="">Tanpa promo</option>
-          <% promoList.forEach(p => { %>
-            <option value="<%= p.id %>" data-tipe="<%= p.tipe %>" data-nilai="<%= p.nilai %>"><%= p.nama_promo %> (<%= p.tipe === 'persen' ? p.nilai + '%' : rupiah(p.nilai) %>)</option>
+          <% promoAkhirList.forEach(p => { %>
+            <option value="<%= p.id %>" <%= (typeof penjualan !== 'undefined' && penjualan && penjualan.promo_v2_id === p.id) ? 'selected' : '' %>>
+              <%= p.nama_promo %> (potongan <%= p.bentuk_potongan === 'persen' ? p.nominal_potongan + '%' : rupiah(p.nominal_potongan) %>)
+            </option>
           <% }) %>
         </select>
-      </div>
-
-      <div>
-        <label class="label-field">Diskon Tambahan (Rp, opsional)</label>
-        <input type="number" step="0.01" name="diskon_nominal" id="diskon_nominal" class="input-field" value="0">
+        <p class="text-xs text-ink/40 mt-1">Memotong total akumulasi belanja di bagian akhir nota, bukan harga satuan produk.</p>
       </div>
 
       <!-- Ringkasan otomatis -->
       <div class="bg-cream rounded-md p-4 space-y-1.5 text-sm border border-line">
-        <div class="flex justify-between"><span class="text-ink/60">Subtotal</span><span id="display-subtotal" class="font-medium">Rp0</span></div>
-        <div class="flex justify-between"><span class="text-ink/60">Diskon &amp; Promo</span><span id="display-diskon" class="font-medium text-warn">- Rp0</span></div>
+        <div class="flex justify-between"><span class="text-ink/60">Subtotal (sebelum diskon item)</span><span id="display-subtotal" class="font-medium">Rp0</span></div>
+        <div class="flex justify-between"><span class="text-ink/60">Diskon Per Item</span><span id="display-diskon-item" class="font-medium text-warn">- Rp0</span></div>
+        <div class="flex justify-between"><span class="text-ink/60">Potongan Akhir Nota</span><span id="display-potongan-akhir" class="font-medium text-warn">- Rp0</span></div>
         <div class="flex justify-between pt-1.5 border-t border-line"><span class="font-semibold">Total</span><span id="display-total" class="font-display font-semibold text-clay text-lg">Rp0</span></div>
       </div>
 
@@ -73,7 +94,7 @@
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label class="label-field">Jumlah Dibayar Sekarang (Rp)</label>
-          <input type="number" step="0.01" name="total_dibayar" id="total_dibayar" class="input-field" value="0">
+          <input type="number" step="0.01" name="total_dibayar" id="total_dibayar" class="input-field" value="<%= (typeof penjualan !== 'undefined' && penjualan) ? penjualan.total_dibayar : 0 %>">
         </div>
         <div>
           <label class="label-field">Status Bayar</label>
@@ -89,39 +110,66 @@
           <div>
             <label class="label-field">Status Ongkir</label>
             <select name="status_ongkir" class="input-field">
-              <option value="belum_diketahui">Belum Diketahui</option>
-              <option value="estimasi">Estimasi</option>
-              <option value="aktual">Aktual</option>
-              <option value="sudah_dibayar">Sudah Dibayar</option>
+              <option value="belum_diketahui" <%= (typeof penjualan !== 'undefined' && penjualan && penjualan.status_ongkir === 'belum_diketahui') ? 'selected' : '' %>>Belum Diketahui</option>
+              <option value="estimasi" <%= (typeof penjualan !== 'undefined' && penjualan && penjualan.status_ongkir === 'estimasi') ? 'selected' : '' %>>Estimasi</option>
+              <option value="aktual" <%= (typeof penjualan !== 'undefined' && penjualan && penjualan.status_ongkir === 'aktual') ? 'selected' : '' %>>Aktual</option>
+              <option value="sudah_dibayar" <%= (typeof penjualan !== 'undefined' && penjualan && penjualan.status_ongkir === 'sudah_dibayar') ? 'selected' : '' %>>Sudah Dibayar</option>
             </select>
           </div>
           <div>
             <label class="label-field">Dibayar Oleh</label>
             <select name="ongkir_dibayar_oleh" class="input-field">
-              <option value="pelanggan">Pelanggan</option>
-              <option value="yeshtosa">Yeshtosa</option>
+              <option value="pelanggan" <%= (typeof penjualan !== 'undefined' && penjualan && penjualan.ongkir_dibayar_oleh === 'pelanggan') ? 'selected' : '' %>>Pelanggan</option>
+              <option value="yeshtosa" <%= (typeof penjualan !== 'undefined' && penjualan && penjualan.ongkir_dibayar_oleh === 'yeshtosa') ? 'selected' : '' %>>Yeshtosa</option>
             </select>
           </div>
           <div>
             <label class="label-field">Ongkir Estimasi (Rp) <span class="text-ink/30">— perkiraan awal</span></label>
-            <input type="number" step="0.01" name="ongkir_estimasi" class="input-field" value="0">
+            <input type="number" step="0.01" name="ongkir_estimasi" class="input-field" value="<%= (typeof penjualan !== 'undefined' && penjualan) ? penjualan.ongkir_estimasi : 0 %>">
           </div>
           <div>
             <label class="label-field">Ongkir Aktual (Rp) <span class="text-clay">— dipakai untuk pencatatan kas</span></label>
-            <input type="number" step="0.01" name="ongkir_aktual" class="input-field" value="0">
+            <input type="number" step="0.01" name="ongkir_aktual" class="input-field" value="<%= (typeof penjualan !== 'undefined' && penjualan) ? penjualan.ongkir_aktual : 0 %>">
           </div>
+        </div>
+        <div>
+          <label class="label-field">Promo Potongan Ongkir (opsional)</label>
+          <select name="promo_ongkir_id" id="promo_ongkir_id" class="input-field">
+            <option value="">Tanpa promo ongkir</option>
+            <% promoOngkirList.forEach(p => { %>
+              <option value="<%= p.id %>" <%= (typeof penjualan !== 'undefined' && penjualan && penjualan.promo_ongkir_id === p.id) ? 'selected' : '' %>>
+                <%= p.nama_promo %> (potongan <%= p.bentuk_potongan === 'persen' ? p.nominal_potongan + '%' : rupiah(p.nominal_potongan) %>)
+              </option>
+            <% }) %>
+          </select>
         </div>
         <p class="text-xs text-ink/40">Isi Estimasi saat order dibuat (perkiraan tarif kurir). Setelah barang benar-benar dikirim dan tarif pasti diketahui, isi/perbarui Aktual — nilai inilah yang dipakai untuk pencatatan kas dan laporan keuangan.</p>
       </div>
 
       <div>
         <label class="label-field">Catatan</label>
-        <textarea name="catatan" rows="2" class="input-field"></textarea>
+        <textarea name="catatan" rows="2" class="input-field"><%= (typeof penjualan !== 'undefined' && penjualan && penjualan.catatan) ? penjualan.catatan : '' %></textarea>
       </div>
 
+      <% if (typeof isAdminPengajuan !== 'undefined' && isAdminPengajuan) { %>
+        <div>
+          <label class="label-field">Alasan Perubahan</label>
+          <textarea name="alasan_perubahan" rows="2" class="input-field" placeholder="Jelaskan alasan pengajuan perubahan ini..." required></textarea>
+        </div>
+      <% } %>
+
       <div class="flex gap-3 pt-2">
-        <button type="submit" class="btn-primary">Simpan Penjualan</button>
-        <a href="/penjualan" class="btn-secondary">Batal</a>
+        <% if (typeof isEdit !== 'undefined' && isEdit) { %>
+          <% if (typeof isAdminPengajuan !== 'undefined' && isAdminPengajuan) { %>
+            <button type="submit" class="btn-primary">Ajukan Edit Transaksi</button>
+          <% } else { %>
+            <button type="submit" class="btn-primary">Simpan Perubahan</button>
+          <% } %>
+          <a href="/penjualan/<%= penjualan.id %>" class="btn-secondary">Batal</a>
+        <% } else { %>
+          <button type="submit" class="btn-primary">Simpan Penjualan</button>
+          <a href="/penjualan" class="btn-secondary">Batal</a>
+        <% } %>
       </div>
     </form>
   </div>
@@ -132,8 +180,9 @@
   const STOK_LIST = <%- JSON.stringify(stokList) %>;
   const PELANGGAN_LIST = <%- JSON.stringify(pelangganList) %>;
   const CABANG_ID = <%- JSON.stringify(cabangId) %>;
+  const ITEM_AWAL = <%- (typeof penjualan !== 'undefined' && penjualan && penjualan.penjualan_detail) ? JSON.stringify(penjualan.penjualan_detail.map(d => ({ produk_id: d.produk_id, jumlah: d.jumlah, diskon_nominal: d.diskon_nominal }))) : '[]' %>;
   let itemCount = 0;
-  let kategoriPelangganTerpilih = 'konsumen';
+  let kategoriPelangganTerpilih = <%- JSON.stringify((typeof penjualan !== 'undefined' && penjualan && penjualan.pelanggan) ? penjualan.pelanggan.kategori : 'konsumen') %>;
 
   // --- Combobox Pelanggan ---
   const pelangganItems = PELANGGAN_LIST.map(p => ({
@@ -142,8 +191,9 @@
     searchText: `${p.nomor_pelanggan} ${p.nama} ${p.kategori}`,
     kategori: p.kategori,
   }));
+  const initialPelangganId = <%- JSON.stringify((typeof penjualan !== 'undefined' && penjualan) ? penjualan.pelanggan_id : (typeof pelangganBaruId !== 'undefined' ? pelangganBaruId : '')) %>;
   initCombobox(document.querySelector('[data-name="pelanggan_id"]'), pelangganItems, {
-    initialId: <%- JSON.stringify(typeof pelangganBaruId !== 'undefined' ? pelangganBaruId : '') %> || null,
+    initialId: initialPelangganId || null,
     onSelect(item) {
       kategoriPelangganTerpilih = item.kategori;
       updateRingkasan();
@@ -154,15 +204,6 @@
       buildUrl: (query) => `/master/pelanggan/tambah?nama=${encodeURIComponent(query)}&kembali_ke=penjualan`,
     },
   });
-
-  // Jika baru kembali dari pembuatan pelanggan baru, langsung set kategori
-  // yang dipakai untuk kalkulasi harga sesuai pelanggan yang baru dibuat.
-  <% if (typeof pelangganBaruId !== 'undefined' && pelangganBaruId) { %>
-    (function() {
-      const found = pelangganItems.find(p => p.id === <%- JSON.stringify(pelangganBaruId) %>);
-      if (found) kategoriPelangganTerpilih = found.kategori;
-    })();
-  <% } %>
 
   function stokTersedia(produkId, status) {
     const s = STOK_LIST.find(s => s.produk_id === produkId && s.status === status);
@@ -182,29 +223,43 @@
     searchText: `${p.nama_produk} ${p.kode_produk || ''}`,
   }));
 
-  function tambahItem() {
+  function tambahItem(produkId, jumlah, diskonBentuk, diskonNilai) {
     itemCount++;
     const idx = itemCount;
     const container = document.getElementById('item-container');
     const div = document.createElement('div');
-    div.className = 'flex gap-2 items-center item-row';
+    div.className = 'border border-line rounded-md p-2.5 space-y-2 item-row';
     div.dataset.idx = idx;
     div.innerHTML = `
-      <div class="combo-wrap flex-1" data-name="produk_id_${idx}">
-        <input type="text" class="input-field combo-input" placeholder="Cari produk..." autocomplete="off">
-        <input type="hidden" name="produk_id" class="combo-value produk-select">
-        <div class="combo-dropdown hidden"></div>
+      <div class="flex gap-2 items-center">
+        <div class="combo-wrap flex-1" data-name="produk_id_${idx}">
+          <input type="text" class="input-field combo-input" placeholder="Cari produk..." autocomplete="off">
+          <input type="hidden" name="produk_id" class="combo-value produk-select">
+          <div class="combo-dropdown hidden"></div>
+        </div>
+        <input type="number" name="jumlah" min="1" value="${jumlah || 1}" class="input-field w-20 jumlah-input" title="Jumlah">
+        <span class="text-xs text-ink/40 w-20 stok-info shrink-0">stok: -</span>
+        <button type="button" onclick="hapusItem(this)" class="text-warn text-sm px-2 shrink-0">✕</button>
       </div>
-      <input type="number" name="jumlah" min="1" value="1" class="input-field w-24 jumlah-input">
-      <span class="text-xs text-ink/40 w-20 stok-info">stok: -</span>
-      <button type="button" onclick="hapusItem(this)" class="text-warn text-sm px-2">✕</button>
+      <div class="flex gap-2 items-center">
+        <label class="text-xs text-ink/40 shrink-0 w-16">Diskon</label>
+        <select name="diskon_bentuk" class="input-field w-32 text-sm diskon-bentuk-select">
+          <option value="flat" ${(!diskonBentuk || diskonBentuk === 'flat') ? 'selected' : ''}>Flat (Rp)</option>
+          <option value="persen" ${diskonBentuk === 'persen' ? 'selected' : ''}>Persen (%)</option>
+        </select>
+        <input type="number" name="diskon_nilai" min="0" value="${diskonNilai || 0}" class="input-field flex-1 diskon-nilai-input" placeholder="Nilai diskon">
+        <span class="text-xs text-ink/50 diskon-info w-32 text-right shrink-0">-</span>
+      </div>
     `;
     container.appendChild(div);
 
     initCombobox(div.querySelector(`[data-name="produk_id_${idx}"]`), produkItemsBase, {
+      initialId: produkId || null,
       onSelect() { updateRingkasan(); },
     });
     div.querySelector('.jumlah-input').addEventListener('input', updateRingkasan);
+    div.querySelector('.diskon-bentuk-select').addEventListener('change', updateRingkasan);
+    div.querySelector('.diskon-nilai-input').addEventListener('input', updateRingkasan);
   }
 
   function hapusItem(btn) {
@@ -212,42 +267,83 @@
     updateRingkasan();
   }
 
+  /**
+   * Menghitung nilai diskon aktual (Rupiah) untuk satu baris item,
+   * berdasarkan jenis (Flat/Persen) dan nilai yang diinput manual
+   * langsung pada baris tersebut.
+   */
+  function hitungDiskonItem(bentukSelect, nilaiInput, hargaSatuan) {
+    const nilai = Number(nilaiInput.value) || 0;
+    if (nilai <= 0) return 0;
+    return bentukSelect.value === 'persen' ? (hargaSatuan * Math.min(100, nilai)) / 100 : nilai;
+  }
+
   function updateRingkasan() {
     const statusProduk = document.getElementById('status_produk').value;
 
-    let subtotal = 0;
+    let subtotalKotor = 0;
+    let totalDiskonItem = 0;
     document.querySelectorAll('.item-row').forEach(row => {
       const produkId = row.querySelector('.produk-select').value;
       const jumlah = Number(row.querySelector('.jumlah-input').value) || 0;
+      const diskonBentukSelect = row.querySelector('.diskon-bentuk-select');
+      const diskonNilaiInput = row.querySelector('.diskon-nilai-input');
+      const diskonInfo = row.querySelector('.diskon-info');
       const stokInfo = row.querySelector('.stok-info');
       const produk = PRODUK_LIST.find(p => p.id === produkId);
       if (produk) {
         const harga = hargaUntukKategori(produk, kategoriPelangganTerpilih);
-        subtotal += harga * jumlah;
+        const diskonPerSatuan = hitungDiskonItem(diskonBentukSelect, diskonNilaiInput, harga);
+        subtotalKotor += harga * jumlah;
+        totalDiskonItem += diskonPerSatuan * jumlah;
         const stok = stokTersedia(produkId, statusProduk);
         stokInfo.textContent = `stok: ${stok}`;
         stokInfo.classList.toggle('text-warn', jumlah > stok);
+        diskonInfo.textContent = diskonPerSatuan > 0 ? `- ${formatRupiah(diskonPerSatuan)}/pcs` : '-';
       } else {
         stokInfo.textContent = 'stok: -';
+        diskonInfo.textContent = '-';
       }
     });
 
-    let diskon = Number(document.getElementById('diskon_nominal').value) || 0;
-    const promoSelect = document.getElementById('promo_id');
-    if (promoSelect.value) {
-      const opt = promoSelect.selectedOptions[0];
-      const tipe = opt.dataset.tipe;
-      const nilai = Number(opt.dataset.nilai);
-      diskon += tipe === 'persen' ? (subtotal * nilai / 100) : nilai;
+    const totalSetelahDiskonItem = Math.max(0, subtotalKotor - totalDiskonItem);
+
+    // Promo Potongan Akhir Nota — basis-nya totalSetelahDiskonItem
+    let potonganAkhir = 0;
+    const promoAkhir = PROMO_AKHIR_LIST.find(p => p.id === document.getElementById('promo_v2_id').value);
+    if (promoAkhir) {
+      potonganAkhir = promoAkhir.bentuk_potongan === 'persen'
+        ? (totalSetelahDiskonItem * Math.min(100, Number(promoAkhir.nominal_potongan))) / 100
+        : Number(promoAkhir.nominal_potongan);
     }
 
-    const total = Math.max(0, subtotal - diskon);
+    const total = Math.max(0, totalSetelahDiskonItem - potonganAkhir);
 
-    document.getElementById('display-subtotal').textContent = formatRupiah(subtotal);
-    document.getElementById('display-diskon').textContent = '- ' + formatRupiah(diskon);
+    document.getElementById('display-subtotal').textContent = formatRupiah(subtotalKotor);
+    document.getElementById('display-diskon-item').textContent = '- ' + formatRupiah(totalDiskonItem);
+    document.getElementById('display-potongan-akhir').textContent = '- ' + formatRupiah(potonganAkhir);
     document.getElementById('display-total').textContent = formatRupiah(total);
 
     updateStatusBayar(total);
+    updatePotonganOngkir();
+  }
+
+  // Promo Potongan Ongkir — basis-nya nilai Ongkir Aktual yang diisi admin
+  function updatePotonganOngkir() {
+    const ongkirAktualInput = document.querySelector('input[name="ongkir_aktual"]');
+    const displayPotonganOngkir = document.getElementById('display-potongan-ongkir');
+    if (!ongkirAktualInput || !displayPotonganOngkir) return;
+
+    const ongkirAktual = Number(ongkirAktualInput.value) || 0;
+    let potonganOngkir = 0;
+    const promoOngkir = PROMO_ONGKIR_LIST.find(p => p.id === document.getElementById('promo_ongkir_id').value);
+    if (promoOngkir) {
+      potonganOngkir = promoOngkir.bentuk_potongan === 'persen'
+        ? (ongkirAktual * Math.min(100, Number(promoOngkir.nominal_potongan))) / 100
+        : Number(promoOngkir.nominal_potongan);
+    }
+    const ongkirSetelahPotongan = Math.max(0, ongkirAktual - potonganOngkir);
+    displayPotonganOngkir.textContent = `Potongan: -${formatRupiah(potonganOngkir)} → Ongkir akhir: ${formatRupiah(ongkirSetelahPotongan)}`;
   }
 
   function updateStatusBayar(total) {
@@ -264,16 +360,34 @@
     return 'Rp' + Math.round(n).toLocaleString('id-ID');
   }
 
+  const PROMO_AKHIR_LIST = <%- JSON.stringify(promoAkhirList.map(p => ({ id: p.id, bentuk_potongan: p.bentuk_potongan, nominal_potongan: p.nominal_potongan }))) %>;
+  const PROMO_ONGKIR_LIST = <%- JSON.stringify(promoOngkirList.map(p => ({ id: p.id, bentuk_potongan: p.bentuk_potongan, nominal_potongan: p.nominal_potongan }))) %>;
+
   document.getElementById('status_produk').addEventListener('change', updateRingkasan);
-  document.getElementById('promo_id').addEventListener('change', updateRingkasan);
-  document.getElementById('diskon_nominal').addEventListener('input', updateRingkasan);
+  document.getElementById('promo_v2_id').addEventListener('change', updateRingkasan);
+  document.getElementById('promo_ongkir_id').addEventListener('change', updatePotonganOngkir);
+  document.querySelector('input[name="ongkir_aktual"]').addEventListener('input', updatePotonganOngkir);
   document.getElementById('total_dibayar').addEventListener('input', () => {
     const totalText = document.getElementById('display-total').textContent.replace(/[^0-9]/g, '');
     updateStatusBayar(Number(totalText) || 0);
   });
 
-  // Mulai dengan 1 item
-  tambahItem();
+  // Tampilkan/sembunyikan field logistik kirim sesuai metode
+  function toggleLogistikKirim() {
+    const metode = document.getElementById('metode_ambil_kirim').value;
+    const blok = document.getElementById('logistik-kirim');
+    blok.classList.toggle('hidden', metode !== 'dikirim');
+  }
+  document.getElementById('metode_ambil_kirim').addEventListener('change', toggleLogistikKirim);
+  toggleLogistikKirim();
+
+  // Mulai dengan item awal (mode edit) atau 1 item kosong (mode tambah)
+  if (ITEM_AWAL.length > 0) {
+    ITEM_AWAL.forEach(item => tambahItem(item.produk_id, item.jumlah, 'flat', item.diskon_nominal));
+  } else {
+    tambahItem();
+  }
+  updateRingkasan();
 
   // --- Validasi stok sebelum submit: tampilkan modal jika kurang ---
   (function() {
@@ -282,7 +396,7 @@
     let sudahDikonfirmasi = false;
 
     form.addEventListener('submit', async function(e) {
-      if (sudahDikonfirmasi) return; // sudah dikonfirmasi, lanjutkan submit normal
+      if (sudahDikonfirmasi) return;
 
       const statusProduk = document.getElementById('status_produk').value;
       const items = [];
@@ -292,7 +406,7 @@
         if (produkId && jumlah > 0) items.push({ produk_id: produkId, jumlah });
       });
 
-      if (items.length === 0) return; // biarkan validasi required bawaan browser yang menangani
+      if (items.length === 0) return;
 
       e.preventDefault();
 

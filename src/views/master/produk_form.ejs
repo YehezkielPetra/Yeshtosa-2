@@ -1,60 +1,68 @@
 <% layout('layouts/main') -%>
+<% const isReadOnly = currentUser.role === 'admin'; %>
 
 <div class="max-w-2xl">
+  <% if (isReadOnly) { %>
+    <div class="rounded-md bg-cream border border-line text-ink/60 px-4 py-2.5 text-sm mb-4">
+      Anda hanya dapat melihat data ini. Hubungi Owner untuk menambah atau mengubah data master.
+    </div>
+  <% } %>
   <div class="panel p-5">
     <form action="<%= produk ? `/master/produk/${produk.id}/edit` : '/master/produk/tambah' %>" method="POST" class="space-y-4">
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label class="label-field">Kode Produk</label>
-          <input type="text" name="kode_produk" required class="input-field" value="<%= produk ? produk.kode_produk : '' %>" placeholder="GST-001">
+          <input type="text" name="kode_produk" required class="input-field" value="<%= produk ? produk.kode_produk : '' %>" placeholder="GST-001" <%= isReadOnly ? 'readonly' : '' %>>
         </div>
         <div>
           <label class="label-field">Kategori</label>
-          <input type="text" name="kategori" class="input-field" value="<%= produk && produk.kategori ? produk.kategori : '' %>" placeholder="Gogos">
+          <input type="text" name="kategori" class="input-field" value="<%= produk && produk.kategori ? produk.kategori : '' %>" placeholder="Gogos" <%= isReadOnly ? 'readonly' : '' %>>
         </div>
       </div>
 
       <div>
         <label class="label-field">Nama Produk</label>
-        <input type="text" name="nama_produk" required class="input-field" value="<%= produk ? produk.nama_produk : '' %>" placeholder="Gogos Isi Tuna">
+        <input type="text" name="nama_produk" required class="input-field" value="<%= produk ? produk.nama_produk : '' %>" placeholder="Gogos Isi Tuna" <%= isReadOnly ? 'readonly' : '' %>>
       </div>
 
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label class="label-field">Satuan</label>
-          <input type="text" name="satuan" class="input-field" value="<%= produk ? produk.satuan : 'pcs' %>">
+          <input type="text" name="satuan" class="input-field" value="<%= produk ? produk.satuan : 'pcs' %>" <%= isReadOnly ? 'readonly' : '' %>>
         </div>
         <div>
           <label class="label-field">Umur Simpan Frozen (hari)</label>
-          <input type="number" name="umur_simpan_frozen_hari" class="input-field" value="<%= produk ? produk.umur_simpan_frozen_hari : 30 %>">
+          <input type="number" name="umur_simpan_frozen_hari" class="input-field" value="<%= produk ? produk.umur_simpan_frozen_hari : 30 %>" <%= isReadOnly ? 'readonly' : '' %>>
         </div>
       </div>
 
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div>
           <label class="label-field">Harga Jual Default</label>
-          <input type="number" step="0.01" name="harga_jual_default" required class="input-field" value="<%= produk ? produk.harga_jual_default : 0 %>">
+          <input type="number" step="0.01" name="harga_jual_default" required class="input-field" value="<%= produk ? produk.harga_jual_default : 0 %>" <%= isReadOnly ? 'readonly' : '' %>>
         </div>
         <div>
           <label class="label-field">Harga Reseller</label>
-          <input type="number" step="0.01" name="harga_jual_reseller" class="input-field" value="<%= produk && produk.harga_jual_reseller ? produk.harga_jual_reseller : '' %>">
+          <input type="number" step="0.01" name="harga_jual_reseller" class="input-field" value="<%= produk && produk.harga_jual_reseller ? produk.harga_jual_reseller : '' %>" <%= isReadOnly ? 'readonly' : '' %>>
         </div>
         <div>
           <label class="label-field">Harga Stock Point</label>
-          <input type="number" step="0.01" name="harga_jual_stock_point" class="input-field" value="<%= produk && produk.harga_jual_stock_point ? produk.harga_jual_stock_point : '' %>">
+          <input type="number" step="0.01" name="harga_jual_stock_point" class="input-field" value="<%= produk && produk.harga_jual_stock_point ? produk.harga_jual_stock_point : '' %>" <%= isReadOnly ? 'readonly' : '' %>>
         </div>
       </div>
 
       <% if (produk) { %>
         <div class="flex items-center gap-2">
-          <input type="checkbox" name="is_aktif" id="is_aktif" <%= produk.is_aktif ? 'checked' : '' %> class="rounded border-line text-clay focus:ring-clay">
+          <input type="checkbox" name="is_aktif" id="is_aktif" <%= produk.is_aktif ? 'checked' : '' %> class="rounded border-line text-clay focus:ring-clay" <%= isReadOnly ? 'disabled' : '' %>>
           <label for="is_aktif" class="text-sm text-ink">Produk aktif</label>
         </div>
       <% } %>
 
       <div class="flex gap-3 pt-2">
-        <button type="submit" class="btn-primary">Simpan</button>
-        <a href="/master/produk" class="btn-secondary">Batal</a>
+        <% if (!isReadOnly) { %>
+          <button type="submit" class="btn-primary">Simpan</button>
+        <% } %>
+        <a href="/master/produk" class="btn-secondary">Kembali</a>
       </div>
     </form>
   </div>

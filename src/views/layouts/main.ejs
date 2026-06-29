@@ -41,6 +41,9 @@
         <a href="/pengeluaran" class="nav-link <%= currentPath.startsWith('/pengeluaran') ? 'active' : '' %>">Pengeluaran</a>
         <a href="/pembayaran" class="nav-link <%= currentPath.startsWith('/pembayaran') ? 'active' : '' %>">Pembayaran</a>
         <a href="/stok" class="nav-link <%= currentPath.startsWith('/stok') ? 'active' : '' %>">Stok</a>
+        <% if (currentUser && currentUser.role === 'admin') { %>
+          <a href="/pengaturan/permintaan-persetujuan" class="nav-link <%= currentPath.startsWith('/pengaturan/permintaan-persetujuan') ? 'active' : '' %>">Status Persetujuan</a>
+        <% } %>
 
         <p class="nav-section-title">Master Data</p>
         <a href="/master/produk" class="nav-link <%= currentPath.startsWith('/master/produk') ? 'active' : '' %>">Produk</a>
@@ -48,6 +51,9 @@
         <a href="/master/pelanggan" class="nav-link <%= currentPath.startsWith('/master/pelanggan') ? 'active' : '' %>">Pelanggan</a>
         <a href="/master/supplier" class="nav-link <%= currentPath.startsWith('/master/supplier') ? 'active' : '' %>">Supplier</a>
         <a href="/master/stock-point" class="nav-link <%= currentPath.startsWith('/master/stock-point') ? 'active' : '' %>">Stock Point</a>
+        <% if (currentUser && currentUser.role === 'owner') { %>
+          <a href="/master/promo" class="nav-link <%= currentPath.startsWith('/master/promo') ? 'active' : '' %>">Promo</a>
+        <% } %>
 
         <p class="nav-section-title">Laporan</p>
         <a href="/laporan/analisis/konsumen" class="nav-link <%= currentPath.startsWith('/laporan/analisis/konsumen') ? 'active' : '' %>">Analisis Konsumen</a>

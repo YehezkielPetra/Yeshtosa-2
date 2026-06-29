@@ -67,11 +67,30 @@ async function setujuiPerubahan(req, res) {
     if (pengajuan.status !== 'pending') throw new Error('Pengajuan ini sudah ditinjau sebelumnya.');
 
     if (pengajuan.jenis_perubahan === 'edit' && pengajuan.data_baru) {
-      const { error: errUpdate } = await supabaseAdmin
-        .from(pengajuan.tabel_target)
-        .update(pengajuan.data_baru)
-        .eq('id', pengajuan.record_id);
-      if (errUpdate) throw errUpdate;
+      if (pengajuan.tabel_target === 'penjualan' && pengajuan.data_baru.header) {
+        // Struktur khusus penjualan: { header, detail } — timpa header
+        // dan ganti seluruh baris penjualan_detail dengan data usulan Admin.
+        const { error: errUpdateHeader } = await supabaseAdmin
+          .from('penjualan')
+          .update(pengajuan.data_baru.header)
+          .eq('id', pengajuan.record_id);
+        if (errUpdateHeader) throw errUpdateHeader;
+
+        await supabaseAdmin.from('penjualan_detail').delete().eq('penjualan_id', pengajuan.record_id);
+        const detailToInsert = (pengajuan.data_baru.detail || []).map(d => ({ ...d, penjualan_id: pengajuan.record_id }));
+        if (detailToInsert.length > 0) {
+          const { error: errDetail } = await supabaseAdmin.from('penjualan_detail').insert(detailToInsert);
+          if (errDetail) throw errDetail;
+        }
+      } else {
+        // Tabel lain: update langsung dengan objek data_baru
+        const { error: errUpdate } = await supabaseAdmin
+          .from(pengajuan.tabel_target)
+          .update(pengajuan.data_baru)
+          .eq('id', pengajuan.record_id);
+        if (errUpdate) throw errUpdate;
+      }
+
       await catatAudit({
         tabel: pengajuan.tabel_target, recordId: pengajuan.record_id, aksi: 'approve',
         dataLama: pengajuan.data_lama, dataBaru: pengajuan.data_baru, userId: user.id,
@@ -79,9 +98,12 @@ async function setujuiPerubahan(req, res) {
     } else if (pengajuan.jenis_perubahan === 'batal') {
       // "Batal" tidak menghapus baris, melainkan tandai status pembatalan
       // agar riwayat tetap utuh dan tidak benar-benar terhapus.
+      const catatanLama = pengajuan.tabel_target === 'penjualan' && pengajuan.data_lama.header
+        ? (pengajuan.data_lama.header.catatan || '')
+        : (pengajuan.data_lama.catatan || '');
       const { error: errUpdate } = await supabaseAdmin
         .from(pengajuan.tabel_target)
-        .update({ catatan: `[DIBATALKAN OLEH OWNER pada ${new Date().toISOString()}] ${pengajuan.data_lama.catatan || ''}` })
+        .update({ catatan: `[DIBATALKAN OLEH OWNER pada ${new Date().toISOString()}] ${catatanLama}` })
         .eq('id', pengajuan.record_id);
       if (errUpdate) throw errUpdate;
       await catatAudit({

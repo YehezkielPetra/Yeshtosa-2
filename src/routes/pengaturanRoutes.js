@@ -3,6 +3,12 @@ const router = express.Router();
 const pengaturanCtrl = require('../controllers/pengaturanController');
 const { requireLogin, requireRole } = require('../middlewares/auth');
 
+// Halaman privat Admin: status pengajuan persetujuan miliknya sendiri.
+// Diletakkan SEBELUM middleware requireRole('owner') di bawah, karena
+// rute ini khusus untuk role admin (bukan owner).
+router.get('/permintaan-persetujuan', requireLogin, requireRole('admin'), pengaturanCtrl.permintaanPersetujuanSaya);
+
+// Sisanya (kelola pengguna) khusus Owner.
 router.use(requireLogin, requireRole('owner'));
 
 router.get('/users', pengaturanCtrl.listUser);
