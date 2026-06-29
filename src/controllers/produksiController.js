@@ -178,6 +178,7 @@ async function balikkanMutasiProduksi(produksi, user) {
       produkId: d.produk_id, cabangId: produksi.cabang_id, status: produksi.status_hasil,
       jumlahPerubahan: -Number(d.jumlah), referensiTipe: 'koreksi_produksi', referensiId: produksi.id,
       keterangan: `Pembalikan stok karena edit/batal produksi ${produksi.nomor_produksi}`, userId: user.id,
+      izinkanStokNegatif: true
     });
 
     // Kembalikan bahan baku yang dulu terpakai (tambahkan kembali)
