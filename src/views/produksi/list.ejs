@@ -13,7 +13,7 @@
   <% } else { %>
     <div class="table-wrap">
     <table class="table-erp">
-      <thead><tr><th>No. Produksi</th><th>Tanggal</th><th>Cabang</th><th>Hasil</th><th>Item</th><th></th></tr></thead>
+      <thead><tr><th>No. Produksi</th><th>Tanggal</th><th>Cabang</th><th>Hasil</th><th>Item</th><th>Biaya Bahan (HPP)</th><th></th></tr></thead>
       <tbody>
         <% produksiList.forEach(p => { %>
           <tr>
@@ -26,6 +26,7 @@
                 <span class="inline-block mr-2"><%= d.produk ? d.produk.nama_produk : '-' %> ×<%= d.jumlah %></span>
               <% }) %>
             </td>
+            <td class="font-medium text-warn"><%= rupiah(p.total_biaya_bahan) %></td>
             <td class="whitespace-nowrap">
               <a href="/produksi/<%= p.id %>/edit" class="text-clay text-sm font-medium hover:underline mr-3">Edit</a>
               <form action="/produksi/<%= p.id %>/batalkan" method="POST" class="inline" onsubmit="return konfirmasiBatalkan(this)">

@@ -15,11 +15,14 @@ async function getDashboard(req, res) {
 
     // Pesanan hari ini — sertakan detail item produk untuk ditampilkan
     // sebagai card per pelanggan, bukan daftar tabel sederhana.
+    const mulaiHariIni = new Date(`${today}T00:00:00`);
+    const selesaiHariIni = new Date(`${today}T23:59:59.999`);
     const { data: pesananHariIni } = await supabaseAdmin
       .from('penjualan')
       .select('id, nomor_order, total, status_bayar, is_selesai, tanggal_order, pelanggan:pelanggan_id(nama), penjualan_detail(jumlah, produk:produk_id(nama_produk, satuan))')
       .eq('cabang_id', cabangId)
-      .gte('tanggal_order', `${today}T00:00:00`)
+      .gte('tanggal_order', mulaiHariIni.toISOString())
+      .lte('tanggal_order', selesaiHariIni.toISOString())
       .order('tanggal_order', { ascending: false });
 
     // Ringkasan rekap pesanan hari ini: total pesanan & total item terjual,

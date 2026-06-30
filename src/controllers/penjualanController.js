@@ -15,15 +15,26 @@ async function listPenjualan(req, res) {
   const user = req.session.user;
   const { status_bayar, tanggal } = req.query;
 
+  // Hanya ambil kolom yang benar-benar ditampilkan di list — mengurangi
+  // payload dan beban query, alih-alih select('*') yang menarik semua
+  // kolom termasuk yang tidak terpakai di halaman ini.
   let query = supabaseAdmin
     .from('penjualan')
-    .select('*, pelanggan:pelanggan_id(nama, kategori), cabang:cabang_id(nama)')
+    .select('id, nomor_order, tanggal_order, status_produk, total, status_bayar, is_selesai, pelanggan:pelanggan_id(nama, kategori), cabang:cabang_id(nama)')
     .order('tanggal_order', { ascending: false })
     .limit(100);
 
   if (user.role !== 'owner') query = query.eq('cabang_id', user.cabangId);
   if (status_bayar) query = query.eq('status_bayar', status_bayar);
-  if (tanggal) query = query.gte('tanggal_order', `${tanggal}T00:00:00`).lte('tanggal_order', `${tanggal}T23:59:59`);
+  if (tanggal) {
+    // Bangun rentang awal/akhir hari secara eksplisit di JS (bukan
+    // string template tanpa timezone) agar filter konsisten dengan
+    // zona waktu lokal dan planner Postgres dapat memakai index
+    // idx_penjualan_tanggal / idx_penjualan_cabang_tanggal dengan baik.
+    const mulai = new Date(`${tanggal}T00:00:00`);
+    const selesai = new Date(`${tanggal}T23:59:59.999`);
+    query = query.gte('tanggal_order', mulai.toISOString()).lte('tanggal_order', selesai.toISOString());
+  }
 
   const { data, error } = await query;
   if (error) req.flash('error', 'Gagal memuat penjualan: ' + error.message);

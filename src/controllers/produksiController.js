@@ -8,8 +8,72 @@ const { supabaseAdmin } = require('../config/supabase');
 const { catatAudit } = require('../utils/auditTrail');
 const { ubahStokBahanBaku, ubahStokProduk, konversiFreshKeFrozen } = require('../utils/stokHelper');
 
+/**
+ * Mengambil harga beli terakhir termurah/terbaru untuk satu bahan baku
+ * dari relasi supplier_bahan_baku. Jika bahan baku dipasok beberapa
+ * supplier, dipakai nilai yang paling baru diperbarui (updated_at).
+ */
+async function ambilHargaBeliTerakhir(bahanBakuId) {
+  const { data } = await supabaseAdmin
+    .from('supplier_bahan_baku')
+    .select('harga_beli_terakhir, updated_at')
+    .eq('bahan_baku_id', bahanBakuId)
+    .not('harga_beli_terakhir', 'is', null)
+    .order('updated_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return data ? Number(data.harga_beli_terakhir) : 0;
+}
+
+/**
+ * Memproses satu baris item produksi (1 produk + jumlah pcs):
+ * - insert ke produksi_detail
+ * - tambah stok produk jadi (Fresh/Frozen)
+ * - loop SEMUA bahan baku di resep produk ini (resep_produk),
+ *   kurangi stok masing-masing secara proporsional terhadap jumlah
+ *   pcs yang dicetak, dan akumulasi nilai Rupiah-nya berdasarkan
+ *   harga_beli_terakhir dari supplier_bahan_baku (untuk HPP).
+ * - Produk yang resepnya tidak mencantumkan suatu bahan (misal
+ *   Gogos Tanpa Isi tanpa Ikan Tuna/Bawang Merah) otomatis TIDAK
+ *   memotong bahan itu, karena loop hanya berjalan atas baris
+ *   resep yang benar-benar ada di database untuk produk tersebut.
+ *
+ * Mengembalikan total biaya bahan (Rupiah) untuk baris item ini,
+ * supaya bisa diakumulasikan ke total_biaya_bahan pada header produksi.
+ */
+async function prosesItemProduksi({ produksiId, produkId, jumlah, cabangId, statusHasil, nomorProduksi, userId, keteranganSuffix = '' }) {
+  await supabaseAdmin.from('produksi_detail').insert({ produksi_id: produksiId, produk_id: produkId, jumlah });
+
+  await ubahStokProduk({
+    produkId, cabangId, status: statusHasil,
+    jumlahPerubahan: jumlah, referensiTipe: 'produksi', referensiId: produksiId,
+    keterangan: `Produksi ${nomorProduksi}${keteranganSuffix}`, userId,
+  });
+
+  const { data: resep } = await supabaseAdmin.from('resep_produk').select('*').eq('produk_id', produkId);
+
+  let biayaBahanBarisIni = 0;
+  for (const r of resep || []) {
+    const jumlahBahanTerpakai = Number(r.jumlah_per_unit) * jumlah;
+
+    await ubahStokBahanBaku({
+      bahanBakuId: r.bahan_baku_id, cabangId,
+      jumlahPerubahan: -jumlahBahanTerpakai,
+      referensiTipe: 'produksi', referensiId: produksiId,
+      keterangan: `Pakai bahan untuk produksi ${nomorProduksi}${keteranganSuffix}`, userId,
+    });
+
+    const hargaTerakhir = await ambilHargaBeliTerakhir(r.bahan_baku_id);
+    biayaBahanBarisIni += jumlahBahanTerpakai * hargaTerakhir;
+  }
+
+  return biayaBahanBarisIni;
+}
+
 async function listProduksi(req, res) {
   const user = req.session.user;
+  // select('*', ...) otomatis menyertakan kolom total_biaya_bahan (HPP)
+  // yang baru ditambahkan ke tabel produksi.
   let query = supabaseAdmin
     .from('produksi')
     .select('*, cabang:cabang_id(nama), produksi_detail(*, produk:produk_id(nama_produk, satuan))')
@@ -70,34 +134,29 @@ async function simpanTambahProduksi(req, res) {
       .select().single();
     if (errInsert) throw errInsert;
 
+    // Loop semua item (bisa multi-ukuran dalam satu sesi produksi,
+    // misal Besar=10, Sedang=14, Kecil=18, Tanpa Isi=24 sekaligus).
+    // Setiap item memotong SEMUA bahan baku sesuai resepnya masing-
+    // masing dan akumulasi nilai Rupiah-nya untuk HPP produksi.
+    let totalBiayaBahan = 0;
     for (let i = 0; i < produkIds.length; i++) {
       const produkId = produkIds[i];
       const jumlah = Number(jumlahArr[i]);
       if (!jumlah || jumlah <= 0) continue;
 
-      await supabaseAdmin.from('produksi_detail').insert({ produksi_id: produksi.id, produk_id: produkId, jumlah });
-
-      // Tambah stok produk jadi
-      await ubahStokProduk({
-        produkId, cabangId: cabangFinal, status: status_hasil || 'fresh',
-        jumlahPerubahan: jumlah, referensiTipe: 'produksi', referensiId: produksi.id,
-        keterangan: `Produksi ${produksi.nomor_produksi}`, userId: user.id,
+      const biayaBarisIni = await prosesItemProduksi({
+        produksiId: produksi.id, produkId, jumlah,
+        cabangId: cabangFinal, statusHasil: status_hasil || 'fresh',
+        nomorProduksi: produksi.nomor_produksi, userId: user.id,
       });
-
-      // Kurangi bahan baku sesuai resep
-      const { data: resep } = await supabaseAdmin.from('resep_produk').select('*').eq('produk_id', produkId);
-      for (const r of resep || []) {
-        await ubahStokBahanBaku({
-          bahanBakuId: r.bahan_baku_id, cabangId: cabangFinal,
-          jumlahPerubahan: -(Number(r.jumlah_per_unit) * jumlah),
-          referensiTipe: 'produksi', referensiId: produksi.id,
-          keterangan: `Pakai bahan untuk produksi ${produksi.nomor_produksi}`, userId: user.id,
-        });
-      }
+      totalBiayaBahan += biayaBarisIni;
     }
 
-    await catatAudit({ tabel: 'produksi', recordId: produksi.id, aksi: 'create', dataBaru: produksi, userId: user.id });
-    req.flash('success', `Produksi ${produksi.nomor_produksi} berhasil dicatat.`);
+    // Simpan akumulasi total biaya bahan (HPP) ke header produksi.
+    await supabaseAdmin.from('produksi').update({ total_biaya_bahan: totalBiayaBahan }).eq('id', produksi.id);
+
+    await catatAudit({ tabel: 'produksi', recordId: produksi.id, aksi: 'create', dataBaru: { ...produksi, total_biaya_bahan: totalBiayaBahan }, userId: user.id });
+    req.flash('success', `Produksi ${produksi.nomor_produksi} berhasil dicatat. Total biaya bahan: Rp${Math.round(totalBiayaBahan).toLocaleString('id-ID')}.`);
     res.redirect('/produksi');
   } catch (err) {
     console.error('[produksi create] error:', err.message);
@@ -233,32 +292,26 @@ async function simpanEditProduksi(req, res) {
       .eq('id', id).select().single();
     if (errUpdate) throw errUpdate;
 
-    // 3. Terapkan mutasi stok baru sesuai item yang diisi ulang
+    // 3. Terapkan mutasi stok baru sesuai item yang diisi ulang,
+    //    sekaligus hitung ulang total biaya bahan (HPP) dari awal.
+    let totalBiayaBahan = 0;
     for (let i = 0; i < produkIds.length; i++) {
       const produkId = produkIds[i];
       const jumlah = Number(jumlahArr[i]);
       if (!jumlah || jumlah <= 0) continue;
 
-      await supabaseAdmin.from('produksi_detail').insert({ produksi_id: id, produk_id: produkId, jumlah });
-
-      await ubahStokProduk({
-        produkId, cabangId: produksiBaru.cabang_id, status: produksiBaru.status_hasil,
-        jumlahPerubahan: jumlah, referensiTipe: 'produksi', referensiId: id,
-        keterangan: `Produksi ${produksiBaru.nomor_produksi} (hasil edit)`, userId: user.id,
+      const biayaBarisIni = await prosesItemProduksi({
+        produksiId: id, produkId, jumlah,
+        cabangId: produksiBaru.cabang_id, statusHasil: produksiBaru.status_hasil,
+        nomorProduksi: produksiBaru.nomor_produksi, userId: user.id,
+        keteranganSuffix: ' (hasil edit)',
       });
-
-      const { data: resep } = await supabaseAdmin.from('resep_produk').select('*').eq('produk_id', produkId);
-      for (const r of resep || []) {
-        await ubahStokBahanBaku({
-          bahanBakuId: r.bahan_baku_id, cabangId: produksiBaru.cabang_id,
-          jumlahPerubahan: -(Number(r.jumlah_per_unit) * jumlah),
-          referensiTipe: 'produksi', referensiId: id,
-          keterangan: `Pakai bahan untuk produksi ${produksiBaru.nomor_produksi} (hasil edit)`, userId: user.id,
-        });
-      }
+      totalBiayaBahan += biayaBarisIni;
     }
 
-    await catatAudit({ tabel: 'produksi', recordId: id, aksi: 'update', dataLama: produksiLama, dataBaru: produksiBaru, userId: user.id });
+    await supabaseAdmin.from('produksi').update({ total_biaya_bahan: totalBiayaBahan }).eq('id', id);
+
+    await catatAudit({ tabel: 'produksi', recordId: id, aksi: 'update', dataLama: produksiLama, dataBaru: { ...produksiBaru, total_biaya_bahan: totalBiayaBahan }, userId: user.id });
     req.flash('success', `Produksi ${produksiBaru.nomor_produksi} berhasil diperbarui.`);
     res.redirect('/produksi');
   } catch (err) {

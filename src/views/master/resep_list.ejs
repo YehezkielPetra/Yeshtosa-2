@@ -1,0 +1,38 @@
+<% layout('layouts/main') -%>
+
+<div class="panel">
+  <div class="p-4 border-b border-line">
+    <h2 class="text-sm font-semibold text-ink">Resep Produk</h2>
+    <p class="text-xs text-ink/40 mt-0.5">Gramasi/koefisien bahan baku per 1 pcs produk jadi. Dapat diubah kapan saja sesuai kebutuhan dapur.</p>
+  </div>
+  <% if (produkList.length === 0) { %>
+    <%- include('../partials/empty_state', { message: 'Belum ada produk aktif.' }) %>
+  <% } else { %>
+    <div class="table-wrap">
+    <table class="table-erp">
+      <thead><tr><th>Produk</th><th>Komposisi Resep (per pcs)</th><th></th></tr></thead>
+      <tbody>
+        <% produkList.forEach(p => { %>
+          <tr>
+            <td class="font-medium align-top"><%= p.nama_produk %></td>
+            <td class="align-top">
+              <% if ((p.resep_produk || []).length === 0) { %>
+                <span class="text-ink/40 text-xs">Belum ada resep</span>
+              <% } else { %>
+                <div class="flex flex-wrap gap-1.5">
+                  <% p.resep_produk.forEach(r => { %>
+                    <span class="pill pill-fresh">
+                      <%= r.bahan_baku ? r.bahan_baku.nama_bahan : '-' %>: <%= r.jumlah_per_unit %> <%= r.bahan_baku ? r.bahan_baku.satuan : '' %>
+                    </span>
+                  <% }) %>
+                </div>
+              <% } %>
+            </td>
+            <td class="align-top"><a href="/master/resep/<%= p.id %>/edit" class="text-clay text-sm font-medium hover:underline">Edit</a></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+    </div>
+  <% } %>
+</div>

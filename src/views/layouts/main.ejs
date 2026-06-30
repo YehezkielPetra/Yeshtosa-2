@@ -52,6 +52,9 @@
         <a href="/master/supplier" class="nav-link <%= currentPath.startsWith('/master/supplier') ? 'active' : '' %>">Supplier</a>
         <a href="/master/stock-point" class="nav-link <%= currentPath.startsWith('/master/stock-point') ? 'active' : '' %>">Stock Point</a>
         <% if (currentUser && currentUser.role === 'owner') { %>
+          <a href="/master/resep" class="nav-link <%= currentPath.startsWith('/master/resep') ? 'active' : '' %>">Resep Produk</a>
+        <% } %>
+        <% if (currentUser && currentUser.role === 'owner') { %>
           <a href="/master/promo" class="nav-link <%= currentPath.startsWith('/master/promo') ? 'active' : '' %>">Promo</a>
         <% } %>
 

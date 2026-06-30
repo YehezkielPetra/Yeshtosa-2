@@ -26,7 +26,19 @@ async function listPembelian(req, res) {
 async function formTambahPembelian(req, res) {
   const { data: supplierList } = await supabaseAdmin.from('master_supplier').select('id, nomor_supplier, nama').eq('is_aktif', true).order('nama');
   const { data: bahanList } = await supabaseAdmin.from('master_bahan_baku').select('*').eq('is_aktif', true).order('nama_bahan');
-  res.render('pembelian/form', { title: 'Tambah Pembelian', supplierList: supplierList || [], bahanList: bahanList || [] });
+
+  // Relasi supplier -> bahan baku yang dipasoknya (untuk filter dropdown
+  // item di frontend: hanya tampilkan bahan baku milik supplier terpilih).
+  const { data: supplierBahanList } = await supabaseAdmin
+    .from('supplier_bahan_baku')
+    .select('supplier_id, bahan_baku_id, harga_beli_terakhir');
+
+  res.render('pembelian/form', {
+    title: 'Tambah Pembelian',
+    supplierList: supplierList || [],
+    bahanList: bahanList || [],
+    supplierBahanList: supplierBahanList || [],
+  });
 }
 
 async function simpanTambahPembelian(req, res) {

@@ -3,10 +3,6 @@
 // ============================================================
 
 function requireLogin(req, res, next) {
-  console.log('[DEBUG requireLogin] session.id:', req.sessionID);
-  console.log('[DEBUG requireLogin] session.user:', req.session ? req.session.user : 'NO SESSION OBJECT');
-  console.log('[DEBUG requireLogin] cookie header:', req.headers.cookie);
-
   if (!req.session || !req.session.user) {
     req.flash('error', 'Silakan login terlebih dahulu.');
     return res.redirect('/login');

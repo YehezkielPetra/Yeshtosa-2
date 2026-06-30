@@ -1,0 +1,46 @@
+<% layout('layouts/main') -%>
+
+<div class="max-w-2xl">
+  <div class="panel p-5">
+    <p class="text-xs text-ink/40 mb-4">Tentukan berapa banyak setiap bahan baku dibutuhkan untuk membuat <strong>1 pcs</strong> <%= produk.nama_produk %>. Jika produk ini tidak memakai suatu bahan (misal Gogos Tanpa Isi tidak memakai Ikan Tuna), cukup jangan tambahkan bahan tersebut ke daftar.</p>
+
+    <form action="/master/resep/<%= produk.id %>/edit" method="POST" class="space-y-4">
+      <div id="resep-container" class="space-y-2"></div>
+      <button type="button" onclick="tambahBaris()" class="text-clay text-xs font-medium hover:underline">+ Tambah bahan baku</button>
+
+      <div class="flex gap-3 pt-4">
+        <button type="submit" class="btn-primary">Simpan Resep</button>
+        <a href="/master/resep" class="btn-secondary">Batal</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  const BAHAN_LIST = <%- JSON.stringify(bahanList) %>;
+  const RESEP_AWAL = <%- JSON.stringify((produk.resep_produk || []).map(r => ({ bahan_baku_id: r.bahan_baku_id, jumlah_per_unit: r.jumlah_per_unit }))) %>;
+
+  function bahanOptionsHtml(selectedId) {
+    return '<option value="">Pilih bahan baku...</option>' + BAHAN_LIST.map(b =>
+      `<option value="${b.id}" data-satuan="${b.satuan}" ${b.id === selectedId ? 'selected' : ''}>${b.nama_bahan} (${b.satuan})</option>`
+    ).join('');
+  }
+
+  function tambahBaris(bahanBakuId, jumlah) {
+    const container = document.getElementById('resep-container');
+    const div = document.createElement('div');
+    div.className = 'flex gap-2 items-center resep-row';
+    div.innerHTML = `
+      <select name="bahan_baku_id" class="input-field flex-1">${bahanOptionsHtml(bahanBakuId || '')}</select>
+      <input type="number" step="0.0001" name="jumlah_per_unit" min="0" value="${jumlah || ''}" placeholder="Jumlah per pcs" class="input-field w-40">
+      <button type="button" onclick="this.closest('.resep-row').remove()" class="text-warn text-sm px-2">✕</button>
+    `;
+    container.appendChild(div);
+  }
+
+  if (RESEP_AWAL.length > 0) {
+    RESEP_AWAL.forEach(r => tambahBaris(r.bahan_baku_id, r.jumlah_per_unit));
+  } else {
+    tambahBaris();
+  }
+</script>

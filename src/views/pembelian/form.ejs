@@ -7,15 +7,17 @@
         <label class="label-field">Supplier</label>
         <div class="combo-wrap" data-name="supplier_id">
           <input type="text" class="input-field combo-input" placeholder="Cari nama atau no. supplier..." autocomplete="off">
-          <input type="hidden" name="supplier_id" class="combo-value" required>
+          <input type="hidden" name="supplier_id" id="supplier_id" class="combo-value" required>
           <div class="combo-dropdown hidden"></div>
         </div>
       </div>
 
       <div>
         <label class="label-field">Item Bahan Baku</label>
+        <div id="pesan-belum-pilih-supplier" class="text-xs text-ink/40 mb-2">Pilih supplier terlebih dahulu untuk menampilkan daftar item yang dipasoknya.</div>
+        <div id="pesan-supplier-kosong" class="text-xs text-warn mb-2 hidden">Supplier ini belum memiliki item bahan baku.</div>
         <div id="item-container" class="space-y-2"></div>
-        <button type="button" onclick="tambahItem()" class="text-clay text-xs font-medium mt-2 hover:underline">+ Tambah bahan baku</button>
+        <button type="button" id="btn-tambah-item" onclick="tambahItem()" class="text-clay text-xs font-medium mt-2 hover:underline hidden">+ Tambah bahan baku</button>
       </div>
 
       <div class="bg-cream rounded-md p-4 border border-line">
@@ -50,7 +52,9 @@
 <script>
   const SUPPLIER_LIST = <%- JSON.stringify(supplierList) %>;
   const BAHAN_LIST = <%- JSON.stringify(bahanList) %>;
+  const SUPPLIER_BAHAN_LIST = <%- JSON.stringify(supplierBahanList) %>;
   let itemCount = 0;
+  let supplierTerpilihId = null;
 
   // --- Combobox Supplier ---
   const supplierItems = SUPPLIER_LIST.map(s => ({
@@ -58,16 +62,65 @@
     label: `${s.nomor_supplier} · ${s.nama}`,
     searchText: `${s.nomor_supplier} ${s.nama}`,
   }));
-  initCombobox(document.querySelector('[data-name="supplier_id"]'), supplierItems);
+  initCombobox(document.querySelector('[data-name="supplier_id"]'), supplierItems, {
+    onSelect(item) {
+      supplierTerpilihId = item.id;
+      onSupplierBerubah();
+    },
+  });
 
-  // --- Combobox Bahan Baku (per baris item) ---
-  const bahanItemsBase = BAHAN_LIST.map(b => ({
-    id: b.id,
-    label: `${b.nama_bahan} (${b.satuan})`,
-    searchText: `${b.nama_bahan} ${b.kode_bahan || ''}`,
-  }));
+  /**
+   * Mengambil daftar item bahan baku (siap untuk combobox) yang
+   * hanya dipasok oleh supplier tertentu, berdasarkan relasi di
+   * tabel supplier_bahan_baku. Jika supplier belum punya relasi
+   * item apapun, kembalikan array kosong.
+   */
+  function bahanItemsUntukSupplier(supplierId) {
+    const bahanIdsUntukSupplier = SUPPLIER_BAHAN_LIST
+      .filter(sb => sb.supplier_id === supplierId)
+      .map(sb => sb.bahan_baku_id);
 
-  function tambahItem() {
+    return BAHAN_LIST
+      .filter(b => bahanIdsUntukSupplier.includes(b.id))
+      .map(b => ({
+        id: b.id,
+        label: `${b.nama_bahan} (${b.satuan})`,
+        searchText: `${b.nama_bahan} ${b.kode_bahan || ''}`,
+      }));
+  }
+
+  /**
+   * Dipanggil setiap kali supplier yang dipilih berubah. Daftar item
+   * pada SEMUA baris yang sudah ada diperbarui otomatis agar hanya
+   * menampilkan item milik supplier tersebut; baris item yang ada
+   * juga dikosongkan ulang karena pilihan bahan baku sebelumnya
+   * (dari supplier lain) sudah tidak valid lagi.
+   */
+  function onSupplierBerubah() {
+    const bahanItemsBaru = bahanItemsUntukSupplier(supplierTerpilihId);
+
+    document.getElementById('pesan-belum-pilih-supplier').classList.add('hidden');
+
+    if (bahanItemsBaru.length === 0) {
+      document.getElementById('pesan-supplier-kosong').classList.remove('hidden');
+      document.getElementById('btn-tambah-item').classList.add('hidden');
+      document.getElementById('item-container').innerHTML = '';
+      updateTotal();
+      return;
+    }
+
+    document.getElementById('pesan-supplier-kosong').classList.add('hidden');
+    document.getElementById('btn-tambah-item').classList.remove('hidden');
+
+    // Reset seluruh baris item yang sudah ada, lalu buat 1 baris baru
+    // dengan daftar item yang sudah sesuai supplier terpilih.
+    document.getElementById('item-container').innerHTML = '';
+    itemCount = 0;
+    tambahItem(bahanItemsBaru);
+  }
+
+  function tambahItem(bahanItemsUntukBaris) {
+    const bahanItems = bahanItemsUntukBaris || bahanItemsUntukSupplier(supplierTerpilihId);
     itemCount++;
     const idx = itemCount;
     const container = document.getElementById('item-container');
@@ -85,8 +138,17 @@
     `;
     container.appendChild(div);
 
-    initCombobox(div.querySelector(`[data-name="bahan_baku_id_${idx}"]`), bahanItemsBase, {
-      onSelect() { updateTotal(); },
+    initCombobox(div.querySelector(`[data-name="bahan_baku_id_${idx}"]`), bahanItems, {
+      onSelect(item) {
+        // Otomatis isi harga satuan dari harga beli terakhir supplier ini,
+        // jika datanya tersedia di relasi supplier_bahan_baku.
+        const relasi = SUPPLIER_BAHAN_LIST.find(sb => sb.supplier_id === supplierTerpilihId && sb.bahan_baku_id === item.id);
+        const hargaInput = div.querySelector('.harga-input');
+        if (relasi && relasi.harga_beli_terakhir && !hargaInput.value) {
+          hargaInput.value = relasi.harga_beli_terakhir;
+        }
+        updateTotal();
+      },
     });
     div.querySelector('.jumlah-input').addEventListener('input', updateTotal);
     div.querySelector('.harga-input').addEventListener('input', updateTotal);
@@ -114,5 +176,4 @@
     const totalText = document.getElementById('display-total').textContent.replace(/[^0-9]/g, '');
     updateStatusBayar(Number(totalText) || 0);
   });
-  tambahItem();
 </script>

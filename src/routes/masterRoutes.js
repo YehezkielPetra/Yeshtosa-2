@@ -6,6 +6,7 @@ const pelangganCtrl = require('../controllers/masterPelangganController');
 const supplierCtrl = require('../controllers/masterSupplierController');
 const stockPointCtrl = require('../controllers/masterStockPointController');
 const promoCtrl = require('../controllers/masterPromoController');
+const resepCtrl = require('../controllers/resepController');
 const { requireLogin, requireRole } = require('../middlewares/auth');
 const { blokirAdminTulis } = require('../middlewares/readOnlyMaster');
 
@@ -60,5 +61,12 @@ router.get('/promo/tambah', requireRole('owner'), promoCtrl.formTambahPromo);
 router.post('/promo/tambah', requireRole('owner'), promoCtrl.simpanTambahPromo);
 router.get('/promo/:id/edit', requireRole('owner'), promoCtrl.formEditPromo);
 router.post('/promo/:id/edit', requireRole('owner'), promoCtrl.simpanEditPromo);
+
+// Resep Produk — gramasi bahan baku per pcs, dinamis & dikelola Owner.
+// Bukan hardcode di kode; menentukan otomatisasi pengurangan stok
+// dan kalkulasi HPP saat produksi dicatat.
+router.get('/resep', requireRole('owner'), resepCtrl.listResep);
+router.get('/resep/:id/edit', requireRole('owner'), resepCtrl.formEditResep);
+router.post('/resep/:id/edit', requireRole('owner'), resepCtrl.simpanResep);
 
 module.exports = router;

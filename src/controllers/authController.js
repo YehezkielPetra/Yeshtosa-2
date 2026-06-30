@@ -21,9 +21,6 @@ async function postLogin(req, res) {
       password,
     });
 
-    console.log('[DEBUG login] authError:', authError ? authError.message : null);
-    console.log('[DEBUG login] authData.user:', authData && authData.user ? authData.user.id : null);
-
     if (authError || !authData.user) {
       req.flash('error', 'Email atau password salah.');
       return res.redirect('/login');
@@ -35,9 +32,6 @@ async function postLogin(req, res) {
       .select('id, nama, role, cabang_id, is_aktif, cabang:cabang_id(id, kode, nama)')
       .eq('id', authData.user.id)
       .single();
-
-    console.log('[DEBUG login] profileError:', profileError ? profileError.message : null);
-    console.log('[DEBUG login] profile:', profile);
 
     if (profileError || !profile) {
       req.flash('error', 'Akun ditemukan tetapi profil pengguna belum diatur. Hubungi Owner.');
@@ -58,14 +52,10 @@ async function postLogin(req, res) {
       email: authData.user.email,
     };
 
-    console.log('[DEBUG login] session.user set:', req.session.user);
-    console.log('[DEBUG login] session.id sebelum redirect:', req.sessionID);
-
     req.flash('success', `Selamat datang, ${profile.nama}!`);
     return res.redirect('/dashboard');
   } catch (err) {
     console.error('[login] error:', err.message);
-    console.error(err.stack);
     req.flash('error', 'Terjadi kesalahan saat login. Silakan coba lagi.');
     return res.redirect('/login');
   }
