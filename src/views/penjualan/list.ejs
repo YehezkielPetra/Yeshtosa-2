@@ -1,49 +1,128 @@
 <% layout('layouts/main') -%>
 
-<div class="panel">
-  <div class="flex items-center justify-between p-4 border-b border-line gap-3 flex-wrap">
-    <h2 class="text-sm font-semibold text-ink">Daftar Penjualan</h2>
-    <div class="flex items-center gap-2">
-      <form method="GET" class="flex items-center gap-2">
-        <input type="date" name="tanggal" value="<%= filterTanggal %>" class="input-field text-sm">
-        <select name="status_bayar" class="input-field text-sm" onchange="this.form.submit()">
-          <option value="">Semua Status Bayar</option>
-          <option value="lunas" <%= filterStatusBayar === 'lunas' ? 'selected' : '' %>>Lunas</option>
-          <option value="sebagian" <%= filterStatusBayar === 'sebagian' ? 'selected' : '' %>>Sebagian</option>
-          <option value="belum_bayar" <%= filterStatusBayar === 'belum_bayar' ? 'selected' : '' %>>Belum Bayar</option>
-        </select>
-        <button type="submit" class="btn-secondary text-xs px-3 py-1.5">Filter</button>
-      </form>
-      <a href="/penjualan/tambah" class="btn-primary text-sm">+ Penjualan Baru</a>
+<div class="space-y-6">
+  
+  <div class="panel p-5 bg-white border-l-4 border-l-gold">
+    <div class="flex justify-between items-center border-b border-line pb-3 mb-4">
+      <div>
+        <h2 class="text-sm font-bold text-ink flex items-center gap-2">
+          <span class="status-dot bg-gold animate-pulse"></span> Ringkasan Pesanan Hari Ini
+        </h2>
+        <p class="text-[11px] text-ink/40 mt-0.5">Daftar transaksi gogos yang masuk khusus pada hari ini.</p>
+      </div>
+      <a href="/penjualan/tambah" class="btn-primary text-xs">+ Penjualan Baru</a>
     </div>
+
+    <% if (penjualanHariIni.length === 0) { %>
+      <%- include('../partials/empty_state', { message: 'Belum ada transaksi penjualan untuk hari ini.', actionLabel: '+ Penjualan Baru', actionUrl: '/penjualan/tambah' }) %>
+    <% } else { %>
+      <div class="table-wrap">
+        <table class="table-erp">
+          <thead>
+            <tr>
+              <th>No. Order</th>
+              <th>Tanggal Pesan</th>
+              <th>Tanggal Kirim</th>
+              <th>Pelanggan</th>
+              <th>Cabang</th>
+              <th>Produk</th>
+              <th>Total</th>
+              <th>Bayar</th>
+              <th>Selesai</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <% penjualanHariIni.forEach(p => { %>
+              <tr class="cursor-pointer" onclick="window.location='/penjualan/<%= p.id %>'">
+                <td class="font-mono text-xs"><%= p.nomor_order %></td>
+                <td><%= p.tanggal_order ? new Date(p.tanggal_order).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-' %></td>
+                <td><%- p.tanggal_kirim ? new Date(p.tanggal_kirim).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '<span class="text-ink/30 italic">Belum diset</span>' %></td>
+                <td><%= p.pelanggan ? p.pelanggan.nama : '-' %></td>
+                <td class="text-xs text-ink/50"><%= p.cabang ? p.cabang.nama : '-' %></td>
+                <td><%- include('../partials/status_produk_pill', { status: p.status_produk }) %></td>
+                <td class="font-medium"><%= rupiah(p.total) %></td>
+                <td><%- include('../partials/status_bayar_pill', { status: p.status_bayar }) %></td>
+                <td><span class="pill <%= p.is_selesai ? 'pill-lunas' : 'pill-pending' %>"><%= p.is_selesai ? 'Selesai' : 'Berjalan' %></span></td>
+                <td onclick="event.stopPropagation()">
+                  <a href="/penjualan/<%= p.id %>/edit" class="text-clay text-sm font-medium hover:underline">
+                    <%= currentUser.role === 'owner' ? 'Edit' : 'Ajukan Edit' %>
+                  </a>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
   </div>
-  <% if (penjualanList.length === 0) { %>
-    <%- include('../partials/empty_state', { message: 'Belum ada transaksi penjualan.', actionLabel: '+ Penjualan Baru', actionUrl: '/penjualan/tambah' }) %>
-  <% } else { %>
-    <div class="table-wrap">
-    <table class="table-erp">
-      <thead><tr><th>No. Order</th><th>Tanggal Pesan</th><th>Tanggal Kirim</th><th>Pelanggan</th><th>Cabang</th><th>Produk</th><th>Total</th><th>Bayar</th><th>Selesai</th><th></th></tr></thead>
-      <tbody>
-        <% penjualanList.forEach(p => { %>
-          <tr class="cursor-pointer" onclick="window.location='/penjualan/<%= p.id %>'">
-            <td class="font-mono text-xs"><%= p.nomor_order %></td>
-            <td><%= p.tanggal_order ? new Date(p.tanggal_order).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-' %></td>
-            <td><%- p.tanggal_kirim ? new Date(p.tanggal_kirim).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '<span class="text-ink/30 italic">Belum diset</span>' %></td>
-            <td><%= p.pelanggan ? p.pelanggan.nama : '-' %></td>
-            <td class="text-xs text-ink/50"><%= p.cabang ? p.cabang.nama : '-' %></td>
-            <td><%- include('../partials/status_produk_pill', { status: p.status_produk }) %></td>
-            <td class="font-medium"><%= rupiah(p.total) %></td>
-            <td><%- include('../partials/status_bayar_pill', { status: p.status_bayar }) %></td>
-            <td><span class="pill <%= p.is_selesai ? 'pill-lunas' : 'pill-pending' %>"><%= p.is_selesai ? 'Selesai' : 'Berjalan' %></span></td>
-            <td onclick="event.stopPropagation()">
-              <a href="/penjualan/<%= p.id %>/edit" class="text-clay text-sm font-medium hover:underline">
-                <%= currentUser.role === 'owner' ? 'Edit' : 'Ajukan Edit' %>
-              </a>
-            </td>
-          </tr>
-        <% }) %>
-      </tbody>
-    </table>
+
+  <div class="panel p-5 bg-white">
+    <div class="flex flex-wrap justify-between items-center gap-3 border-b border-line pb-3 mb-4">
+      <div>
+        <h2 class="text-sm font-semibold text-ink">Riwayat Semua Pencarian Transaksi</h2>
+        <p class="text-[11px] text-ink/40 mt-0.5">Gunakan filter untuk mencari rekaman transaksi penjualan terdahulu.</p>
+      </div>
+      
+      <form action="/penjualan" method="GET" class="flex flex-wrap items-center gap-2">
+        <input type="date" name="tanggal" value="<%= filterTanggal %>" class="input-field text-xs w-40">
+        
+        <select name="status_bayar" class="input-field text-xs w-40">
+          <option value="">Semua Status Bayar</option>
+          <option value="belum_bayar" <%= filterStatusBayar === 'belum_bayar' ? 'selected' : '' %>>Belum Bayar</option>
+          <option value="sebagian" <%= filterStatusBayar === 'sebagian' ? 'selected' : '' %>>Sebagian</option>
+          <option value="lunas" <%= filterStatusBayar === 'lunas' ? 'selected' : '' %>>Lunas</option>
+        </select>
+        
+        <button type="submit" class="btn-primary text-xs px-4 py-2">Filter</button>
+        <% if (filterTanggal || filterStatusBayar) { %>
+          <a href="/penjualan" class="btn-secondary text-xs px-3 py-2">Reset</a>
+        <% } %>
+      </form>
     </div>
-  <% } %>
+
+    <% if (penjualanRiwayat.length === 0) { %>
+      <p class="text-xs text-ink/40 text-center py-4">Tidak ada data transaksi riwayat yang cocok dengan kriteria filter.</p>
+    <% } else { %>
+      <div class="table-wrap">
+        <table class="table-erp">
+          <thead>
+            <tr>
+              <th>No. Order</th>
+              <th>Tanggal Pesan</th>
+              <th>Tanggal Kirim</th>
+              <th>Pelanggan</th>
+              <th>Cabang</th>
+              <th>Produk</th>
+              <th>Total</th>
+              <th>Bayar</th>
+              <th>Selesai</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <% penjualanRiwayat.forEach(p => { %>
+              <tr class="cursor-pointer" onclick="window.location='/penjualan/<%= p.id %>'">
+                <td class="font-mono text-xs"><%= p.nomor_order %></td>
+                <td><%= p.tanggal_order ? new Date(p.tanggal_order).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-' %></td>
+                <td><%- p.tanggal_kirim ? new Date(p.tanggal_kirim).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '<span class="text-ink/30 italic">Belum diset</span>' %></td>
+                <td><%= p.pelanggan ? p.pelanggan.nama : '-' %></td>
+                <td class="text-xs text-ink/50"><%= p.cabang ? p.cabang.nama : '-' %></td>
+                <td><%- include('../partials/status_produk_pill', { status: p.status_produk }) %></td>
+                <td class="font-medium"><%= rupiah(p.total) %></td>
+                <td><%- include('../partials/status_bayar_pill', { status: p.status_bayar }) %></td>
+                <td><span class="pill <%= p.is_selesai ? 'pill-lunas' : 'pill-pending' %>"><%= p.is_selesai ? 'Selesai' : 'Berjalan' %></span></td>
+                <td onclick="event.stopPropagation()">
+                  <a href="/penjualan/<%= p.id %>/edit" class="text-clay text-sm font-medium hover:underline">
+                    <%= currentUser.role === 'owner' ? 'Edit' : 'Ajukan Edit' %>
+                  </a>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </div>
+
 </div>

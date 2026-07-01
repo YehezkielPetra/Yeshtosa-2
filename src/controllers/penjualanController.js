@@ -45,24 +45,65 @@ async function listPenjualan(req, res) {
   const user = req.session.user;
   const { status_bayar, tanggal } = req.query;
 
-  let query = supabaseAdmin
-    .from('penjualan')
-    .select('id, nomor_order, tanggal_order, tanggal_kirim, status_produk, total, status_bayar, is_selesai, pelanggan:pelanggan_id(nama, kategori), cabang:cabang_id(nama)')
-    .order('tanggal_order', { ascending: false })
-    .limit(100);
+  // Mendapatkan rentang waktu Waktu Lokal Hari Ini (00:00:00 s.d 23:59:59)
+  const tzOffset = new Date().getTimezoneOffset() * 60000;
+  const hariIniMulai = new Date(new Date().setHours(0,0,0,0) - tzOffset).toISOString().split('T')[0] + 'T00:00:00.000Z';
+  const hariIniSelesai = new Date(new Date().setHours(23,59,59,999) - tzOffset).toISOString().split('T')[0] + 'T23:59:59.999Z';
 
-  if (user.role !== 'owner') query = query.eq('cabang_id', user.cabangId);
-  if (status_bayar) query = query.eq('status_bayar', status_bayar);
-  if (tanggal) {
-    const mulai = `${tanggal}T00:00:00.000Z`;
-    const selesai = `${tanggal}T23:59:59.999Z`;
-    query = query.gte('tanggal_kirim', mulai).lte('tanggal_kirim', selesai);
+  try {
+    // -----------------------------------------------------------------
+    // QUERIES 1: Hanya mengambil penjualan HARI INI
+    // -----------------------------------------------------------------
+    let queryHariIni = supabaseAdmin
+      .from('penjualan')
+      .select('id, nomor_order, tanggal_order, tanggal_kirim, status_produk, total, status_bayar, is_selesai, pelanggan:pelanggan_id(nama, kategori), cabang:cabang_id(nama)')
+      .gte('tanggal_order', hariIniMulai)
+      .lte('tanggal_order', hariIniSelesai)
+      .order('tanggal_order', { ascending: false });
+
+    if (user.role !== 'owner') queryHariIni = queryHariIni.eq('cabang_id', user.cabangId);
+    const { data: penjualanHariIni } = await queryHariIni;
+
+    // -----------------------------------------------------------------
+    // QUERIES 2: Mengambil data Riwayat yang bisa DILAKUKAN FILTER
+    // -----------------------------------------------------------------
+    let queryRiwayat = supabaseAdmin
+      .from('penjualan')
+      .select('id, nomor_order, tanggal_order, tanggal_kirim, status_produk, total, status_bayar, is_selesai, pelanggan:pelanggan_id(nama, kategori), cabang:cabang_id(nama)')
+      .order('tanggal_order', { ascending: false })
+      .limit(100);
+
+    if (user.role !== 'owner') queryRiwayat = queryRiwayat.eq('cabang_id', user.cabangId);
+    if (status_bayar) queryRiwayat = queryRiwayat.eq('status_bayar', status_bayar);
+    
+    // Jika ada tanggal yang difilter oleh user di form bawah
+    if (tanggal) {
+      const mulai = `${tanggal}T00:00:00.000Z`;
+      const selesai = `${tanggal}T23:59:59.999Z`;
+      queryRiwayat = queryRiwayat.gte('tanggal_order', mulai).lte('tanggal_order', selesai);
+    }
+
+    const { data: penjualanRiwayat, error: errRiwayat } = await queryRiwayat;
+    if (errRiwayat) throw errRiwayat;
+
+    res.render('penjualan/list', { 
+      title: 'Penjualan', 
+      penjualanHariIni: penjualanHariIni || [], 
+      penjualanRiwayat: penjualanRiwayat || [], 
+      filterStatusBayar: status_bayar || '', 
+      filterTanggal: tanggal || '' 
+    });
+
+  } catch (error) {
+    req.flash('error', 'Gagal memuat data penjualan: ' + error.message);
+    res.render('penjualan/list', { 
+      title: 'Penjualan', 
+      penjualanHariIni: [], 
+      penjualanRiwayat: [], 
+      filterStatusBayar: '', 
+      filterTanggal: '' 
+    });
   }
-
-  const { data, error } = await query;
-  if (error) req.flash('error', 'Gagal memuat penjualan: ' + error.message);
-
-  res.render('penjualan/list', { title: 'Penjualan', penjualanList: data || [], filterStatusBayar: status_bayar || '', filterTanggal: tanggal || '' });
 }
 
 async function formTambahPenjualan(req, res) {
