@@ -10,20 +10,19 @@
   </div>
 
   <div class="panel p-4 bg-cream/40 border border-line flex flex-wrap items-center justify-between gap-3 mb-5 rounded-lg">
-  <div class="flex items-center gap-2">
-    <span class="text-xs font-semibold text-ink/70">Salin Formula Resep dari Produk Lain:</span>
-    <select id="produk_asal_copy" class="input-field text-xs w-56">
-      <option value="">-- Pilih Produk Asal --</option>
-      <% produkList.forEach(p => { %>
-        <% if (p.id !== produk.id) { %> <option value="<%= p.id %>"><%= p.nama_produk %></option>
-        <% } %>
-      <% }) %>
-    </select>
+    <div class="flex items-center gap-2">
+      <span class="text-xs font-semibold text-ink/70">Salin Formula Resep dari Produk Lain:</span>
+      <select id="produk_asal_copy" class="input-field text-xs w-56">
+        <option value="">-- Pilih Produk Asal --</option>
+        <% produkList.forEach(p => { %>
+          <% if (p.id !== produk.id) { %> <option value="<%= p.id %>"><%= p.nama_produk %></option> <% } %>
+        <% }) %>
+      </select>
+    </div>
+    <button type="button" onclick="prosesCopyResep()" class="bg-gold text-white text-xs font-bold px-4 py-2 rounded hover:bg-gold/80 transition shadow-sm">
+      ✕ Salin &amp; Terapkan Resep
+    </button>
   </div>
-  <button type="button" onclick="prosesCopyResep()" class="bg-gold text-white text-xs font-bold px-4 py-2 rounded hover:bg-gold/80 transition shadow-sm">
-    ✕ Salin & Terapkan Resep
-  </button>
-</div>
 
   <form action="/master/resep/<%= produk.id %>/edit" method="POST" id="form-resep-batch" class="space-y-5">
     
@@ -61,7 +60,7 @@
           <input type="number" id="target_ikan_global" min="1" class="input-field text-sm w-24 text-center font-bold" value="40" oninput="sinkronisasiTargetIkan(this.value)">
         </div>
       </div>
-      <p class="text-xs text-ink/40 mb-4">Masukkan takaran bahan utama ikan tuna, bawang merah, cabai, and bumbu isian pelengkap lainnya.</p>
+      <p class="text-xs text-ink/40 mb-4">Masukkan takaran bahan utama ikan tuna, bawang merah, cabai, dan bumbu isian pelengkap lainnya.</p>
 
       <div class="space-y-2">
         <div class="grid grid-cols-12 gap-2 px-1 text-xs font-semibold uppercase tracking-wide text-ink/50 bg-cream/60 p-2 rounded">
@@ -94,13 +93,12 @@
 
 <script>
   const BAHAN_LIST = <%- JSON.stringify(bahanList) %>;
-  // Membaca data awal termasuk kolom tipe_blok dari database
   const RESEP_AWAL = <%- JSON.stringify((produk.resep_produk || []).map(r => ({
     bahan_baku_id: r.bahan_baku_id,
     nama_bahan: r.bahan_baku ? r.bahan_baku.nama_bahan.toLowerCase() : '',
     jumlah_per_batch: r.jumlah_per_batch || r.jumlah_per_unit || '',
     target_hasil_pcs: r.target_hasil_pcs || 40,
-    tipe_blok: r.tipe_blok || '' // Menangkap kolom tipe_blok lama
+    tipe_blok: r.tipe_blok || ''
   }))) %>;
 
   function bahanOptionsHtml(selectedId) {
@@ -116,13 +114,12 @@
     
     const div = document.createElement('div');
     div.className = 'grid grid-cols-12 gap-2 items-center resep-row bg-white p-1 rounded border border-line/40';
-    
     const currentTarget = targetHasil || currentTargetKetan();
 
-    // FIX 1: Menyisipkan input hidden name="tipe_blok[]" bernilai 'nasi'
+    // KUNCI FIX: Memindahkan input 'nasi' ke dalam wrapper col-span agar urutan index HTML DOM stabil mutlak
     div.innerHTML = `
-      <input type="hidden" name="tipe_blok[]" value="nasi">
       <div class="col-span-5">
+        <input type="hidden" name="tipe_blok[]" value="nasi">
         <select name="bahan_baku_id[]" class="input-field w-full text-sm" required onchange="updateSatuanLabel(this)">
           ${bahanOptionsHtml(bahanBakuId || '')}
         </select>
@@ -151,12 +148,10 @@
     div.className = 'grid grid-cols-12 gap-2 items-center resep-row bg-white p-1 rounded border border-line/40';
     const currentTargetIkan = document.getElementById('target_ikan_global').value || 40;
 
-    // FIX 2: Menyisipkan input hidden name="tipe_blok[]" bernilai 'ikan'
-    // PENTING: Tambahkan tanda [] pada name="bahan_baku_id", "jumlah_per_batch", dan "target_hasil_pcs" 
-    // agar data terkirim sebagai array yang sejajar ke backend Express Anda.
+    // KUNCI FIX: Memindahkan input 'ikan' ke dalam wrapper col-span agar sinkronisasi baris tidak pecah saat dihapus
     div.innerHTML = `
-      <input type="hidden" name="tipe_blok[]" value="ikan">
       <div class="col-span-7">
+        <input type="hidden" name="tipe_blok[]" value="ikan">
         <select name="bahan_baku_id[]" class="input-field w-full text-sm" required onchange="updateSatuanLabel(this)">
           ${bahanOptionsHtml(bahanBakuId || '')}
         </select>
@@ -205,134 +200,136 @@
     }
   }
 
-  // FIX 3: Logika pembagian data cerdas berdasarkan kolom `tipe_blok` asli dari database
+  // DISTRIBUSI DATA AWAL SAAT HALAMAN DIMUAT
   if (RESEP_AWAL.length > 0) {
-    const itemKetanAwal = RESEP_AWAL.find(r => r.nama_bahan.includes('beras') || r.nama_bahan.includes('ketan'));
-    if (itemKetanAwal) {
-      document.getElementById('target_ketan_global').value = itemKetanAwal.target_hasil_pcs;
-    } else {
-      document.getElementById('target_ketan_global').value = RESEP_AWAL[0].target_hasil_pcs;
-    }
+    const itemKetanAwal = RESEP_AWAL.find(r => {
+      const tb = (r.tipe_blok || '').toLowerCase().trim();
+      return tb === 'nasi' || r.nama_bahan.includes('beras') || r.nama_bahan.includes('ketan');
+    });
+    document.getElementById('target_ketan_global').value = itemKetanAwal ? itemKetanAwal.target_hasil_pcs : 40;
 
-    const itemIkanAwal = RESEP_AWAL.find(r => r.nama_bahan.includes('tuna') || r.nama_bahan.includes('ikan'));
-    if (itemIkanAwal) {
-      document.getElementById('target_ikan_global').value = itemIkanAwal.target_hasil_pcs;
-    }
+    const itemIkanAwal = RESEP_AWAL.find(r => {
+      const tb = (r.tipe_blok || '').toLowerCase().trim();
+      return tb === 'ikan' || r.nama_bahan.includes('tuna') || r.nama_bahan.includes('ikan');
+    });
+    document.getElementById('target_ikan_global').value = itemIkanAwal ? itemIkanAwal.target_hasil_pcs : 40;
 
     RESEP_AWAL.forEach(r => {
-      // Jika database sudah memiliki data tipe_blok, gunakan itu sebagai acuan utama
-      if (r.tipe_blok === 'nasi') {
+      const tipeBlokDB = (r.tipe_blok || '').toLowerCase().trim();
+      const namaBahan = (r.nama_bahan || '').toLowerCase();
+
+      if (tipeBlokDB === 'nasi') {
         tambahBarisKetan(r.bahan_baku_id, r.jumlah_per_batch, r.target_hasil_pcs);
-      } else if (r.tipe_blok === 'ikan') {
+      } else if (tipeBlokDB === 'ikan') {
         tambahBarisIkan(r.bahan_baku_id, r.jumlah_per_batch);
       } else {
-        // Fallback cadangan jika ada data lama yang kolom tipe_blok-nya masih kosong
-        if (r.nama_bahan.includes('beras') || r.nama_bahan.includes('ketan') || r.nama_bahan.includes('santan') || r.nama_bahan.includes('daun')) {
+        if (
+          namaBahan.includes('beras') || 
+          namaBahan.includes('ketan') || 
+          namaBahan.includes('santan') || 
+          namaBahan.includes('pandan') ||
+          namaBahan.includes('daun')
+        ) {
           tambahBarisKetan(r.bahan_baku_id, r.jumlah_per_batch, r.target_hasil_pcs);
         } else {
           tambahBarisIkan(r.bahan_baku_id, r.jumlah_per_batch);
         }
       }
     });
+
+    document.querySelectorAll('#ketan-container select, #ikan-container select').forEach(select => {
+      updateSatuanLabel(select);
+    });
+
   } else {
     document.getElementById('target_ketan_global').value = 40;
+    document.getElementById('target_ikan_global').value = 40;
     tambahBarisKetan();
     tambahBarisIkan();
   }
 
-async function prosesCopyResep() {
-  const produkAsalId = document.getElementById('produk_asal_copy').value;
-  if (!produkAsalId) return alert("Silakan pilih produk asal terlebih dahulu!");
+  // FUNGSI COPY RESEP DARI PRODUK LAIN
+  async function prosesCopyResep() {
+    const produkAsalId = document.getElementById('produk_asal_copy').value;
+    if (!produkAsalId) return alert("Silakan pilih produk asal terlebih dahulu!");
 
-  // Menggunakan Modal Kustom Anda yang sudah berjalan normal
-  bukaModalKustom(
-    "Salin Formula Resep", 
-    "Menyalin resep akan mengosongkan takaran yang sedang tampil di layar saat ini. Lanjutkan?", 
-    async function() {
-      try {
-        const response = await fetch(`/master/resep/api/${produkAsalId}`);
-        const result = await response.json();
+    bukaModalKustom(
+      "Salin Formula Resep", 
+      "Menyalin resep akan mengosongkan takaran yang sedang tampil di layar saat ini. Lanjutkan?", 
+      async function() {
+        try {
+          const response = await fetch(`/master/resep/api/${produkAsalId}`);
+          const result = await response.json();
 
-        if (!result.success) throw new Error(result.message);
-        if (!result.resep || result.resep.length === 0) return alert("Produk asal belum memiliki formula resep.");
+          if (!result.success) throw new Error(result.message);
+          if (!result.resep || result.resep.length === 0) return alert("Produk asal belum memiliki formula resep.");
 
-        // 1. Bersihkan layar saat ini dari isian lama
-        document.getElementById('ketan-container').innerHTML = '';
-        document.getElementById('ikan-container').innerHTML = '';
+          document.getElementById('ketan-container').innerHTML = '';
+          document.getElementById('ikan-container').innerHTML = '';
 
-        // 2. Ambil nilai target hasil global dari produk asal
-        const itemKetan = result.resep.find(r => {
-          const blok = (r.tipe_blok || '').toLowerCase();
-          const nama = r.bahan_baku ? (r.bahan_baku.nama_bahan || '').toLowerCase() : '';
-          return blok === 'nasi' || nama.includes('beras') || nama.includes('ketan');
-        });
-        if (itemKetan) document.getElementById('target_ketan_global').value = itemKetan.target_hasil_pcs;
-        
-        const itemIkan = result.resep.find(r => {
-          const blok = (r.tipe_blok || '').toLowerCase();
-          const nama = r.bahan_baku ? (r.bahan_baku.nama_bahan || '').toLowerCase() : '';
-          return blok === 'ikan' || nama.includes('tuna') || nama.includes('ikan');
-        });
-        if (itemIkan) document.getElementById('target_ikan_global').value = itemIkan.target_hasil_pcs || 40;
+          const itemKetan = result.resep.find(r => (r.tipe_blok || '').toLowerCase().trim() === 'nasi');
+          document.getElementById('target_ketan_global').value = itemKetan ? itemKetan.target_hasil_pcs : 40;
+          
+          const itemIkan = result.resep.find(r => (r.tipe_blok || '').toLowerCase().trim() === 'ikan');
+          document.getElementById('target_ikan_global').value = itemIkan ? itemIkan.target_hasil_pcs : 40;
 
-        // 3. Masukkan baris baru dengan validasi toleransi huruf besar/kecil (Case-Insensitive)
-        result.resep.forEach(r => {
-          // Normalisasi teks agar aman dari perbedaan kapitalisasi data lama
-          const blokClean = (r.tipe_blok || '').toLowerCase().trim();
-          const namaBahanClean = r.bahan_baku ? (r.bahan_baku.nama_bahan || '').toLowerCase() : '';
+          result.resep.forEach(r => {
+            const tipeBlokDB = (r.tipe_blok || '').toLowerCase().trim();
+            const namaBahan = r.bahan_baku ? (r.bahan_baku.nama_bahan || '').toLowerCase() : '';
 
-          if (blokClean === 'nasi') {
-            tambahBarisKetan(r.bahan_baku_id, r.jumlah_per_batch, r.target_hasil_pcs);
-          } else if (blokClean === 'ikan') {
-            tambahBarisIkan(r.bahan_baku_id, r.jumlah_per_batch);
-          } else {
-            // CADANGAN: Jika tipe_blok kosong/null di database, deteksi lewat nama bahannya
-            if (namaBahanClean.includes('beras') || namaBahanClean.includes('ketan') || namaBahanClean.includes('santan') || namaBahanClean.includes('daun')) {
+            if (tipeBlokDB === 'nasi') {
               tambahBarisKetan(r.bahan_baku_id, r.jumlah_per_batch, r.target_hasil_pcs);
-            } else {
+            } else if (tipeBlokDB === 'ikan') {
               tambahBarisIkan(r.bahan_baku_id, r.jumlah_per_batch);
+            } else {
+              if (namaBahan.includes('beras') || namaBahan.includes('ketan') || namaBahan.includes('santan') || namaBahan.includes('daun')) {
+                tambahBarisKetan(r.bahan_baku_id, r.jumlah_per_batch, r.target_hasil_pcs);
+              } else {
+                tambahBarisIkan(r.bahan_baku_id, r.jumlah_per_batch);
+              }
             }
-          }
-        });
+          });
 
-        alert("Resep berhasil disalin ke layar! Silakan sesuaikan takaran bumbu ukuran baru ini, lalu klik Simpan Resep Batch.");
-      } catch (err) {
-        console.error("Gagal memproses copy resep:", err);
-        alert("Gagal menyalin resep: " + err.message);
+          document.querySelectorAll('#ketan-container select, #ikan-container select').forEach(select => {
+            updateSatuanLabel(select);
+          });
+
+          alert("Resep berhasil disalin secara presisi! Silakan sesuaikan takaran bumbu untuk ukuran baru ini, lalu klik Simpan Resep Batch.");
+        } catch (err) {
+          console.error("Gagal memproses copy resep:", err);
+          alert("Gagal menyalin resep: " + err.message);
+        }
       }
-    }
-  );
-}
+    );
+  }
 
-function bukaModalKustom(title, message, onConfirm) {
-  const modal = document.getElementById('kustom-confirm-modal');
-  document.getElementById('modal-confirm-title').textContent = title;
-  document.getElementById('modal-confirm-message').textContent = message;
-  
-  modal.classList.remove('hidden');
-  
-  // Reset event listener agar tidak menumpuk saat dipanggil berkali-kali
-  const btnOk = document.getElementById('modal-confirm-ok');
-  const btnCancel = document.getElementById('modal-confirm-cancel');
-  
-  btnOk.onclick = function() {
-    modal.classList.add('hidden');
-    onConfirm();
-  };
-  
-  btnCancel.onclick = function() {
-    modal.classList.add('hidden');
-  };
-}
+  function bukaModalKustom(title, message, onConfirm) {
+    const modal = document.getElementById('kustom-confirm-modal');
+    document.getElementById('modal-confirm-title').textContent = title;
+    document.getElementById('modal-confirm-message').textContent = message;
+    
+    modal.classList.remove('hidden');
+    
+    const btnOk = document.getElementById('modal-confirm-ok');
+    const btnCancel = document.getElementById('modal-confirm-cancel');
+    
+    btnOk.onclick = function() {
+      modal.classList.add('hidden');
+      onConfirm();
+    };
+    
+    btnCancel.onclick = function() {
+      modal.classList.add('hidden');
+    };
+  }
 
-document.getElementById('btn-simpan-resep').addEventListener('click', function() {
-  bukaModalKustom(
-    "Simpan Formula Resep",
-    "Apakah Anda yakin data formula resep batch yang diisi sudah benar dan ingin menyimpannya ke database?",
-    function() {
-      // Jika user klik OK, jalankan submit form secara resmi
-      document.getElementById('form-resep-batch').submit();
-    }
-  );
-});
+  document.getElementById('btn-simpan-resep').addEventListener('click', function() {
+    bukaModalKustom(
+      "Simpan Formula Resep",
+      "Apakah Anda yakin data formula resep batch yang diisi sudah benar dan ingin menyimpannya ke database?",
+      function() {
+        document.getElementById('form-resep-batch').submit();
+      }
+    );
+  });
 </script>
