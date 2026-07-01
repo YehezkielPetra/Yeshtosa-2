@@ -77,7 +77,8 @@ async function getDashboard(req, res) {
         .from('penjualan')
         .select('id, total, total_dibayar, pelanggan:pelanggan_id(nama)')
         .eq('cabang_id', cabangId)
-        .neq('status_bayar', 'lunas');
+        .or('status_bayar.eq.belum_bayar,status_bayar.eq.sebagian')
+        .gt('total', 0);
       piutang = piutangData || [];
       totalPiutang = piutang.reduce((sum, p) => sum + (Number(p.total) - Number(p.total_dibayar)), 0);
 

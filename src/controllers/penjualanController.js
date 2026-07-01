@@ -11,13 +11,40 @@ const { catatAudit } = require('../utils/auditTrail');
 const { catatMutasiKas } = require('../utils/kasLedger');
 const { ubahStokProduk } = require('../utils/stokHelper');
 
+/**
+ * Membalikkan (mengembalikan) mutasi stok produk akibat proses edit penjualan.
+ * Stok yang dulu sempat dikurangi akan ditambahkan kembali secara otomatis.
+ */
+async function balikkanMutasiStokPenjualan(penjualanLama, user) {
+  // Ambil detail item produk dari penjualan lama
+  const { data: detailLama, error: errDetail } = await supabaseAdmin
+    .from('penjualan_detail')
+    .select('*')
+    .eq('penjualan_id', penjualanLama.id);
+
+  if (errDetail) throw errDetail;
+
+  for (const d of detailLama || []) {
+    // Karena penjualan sifatnya MENGURANGI stok (negatif), 
+    // maka untuk membalikkannya kita harus MENAMBAHKAN kembali jumlahnya (positif)
+    await ubahStokProduk({
+      produkId: d.produk_id,
+      cabangId: penjualanLama.cabang_id,
+      status: penjualanLama.status_produk, // 'fresh' atau 'frozen'
+      jumlahPerubahan: Number(d.jumlah), // Nilai positif untuk mengembalikan stok
+      referensiTipe: 'koreksi_penjualan',
+      referensiId: penjualanLama.id,
+      keterangan: `Pembalikan stok karena edit transaksi penjualan ${penjualanLama.nomor_order}`,
+      userId: user.id,
+      izinkanStokNegatif: true
+    });
+  }
+}
+
 async function listPenjualan(req, res) {
   const user = req.session.user;
   const { status_bayar, tanggal } = req.query;
 
-  // Hanya ambil kolom yang benar-benar ditampilkan di list — mengurangi
-  // payload dan beban query, alih-alih select('*') yang menarik semua
-  // kolom termasuk yang tidak terpakai di halaman ini.
   let query = supabaseAdmin
     .from('penjualan')
     .select('id, nomor_order, tanggal_order, tanggal_kirim, status_produk, total, status_bayar, is_selesai, pelanggan:pelanggan_id(nama, kategori), cabang:cabang_id(nama)')
@@ -27,10 +54,6 @@ async function listPenjualan(req, res) {
   if (user.role !== 'owner') query = query.eq('cabang_id', user.cabangId);
   if (status_bayar) query = query.eq('status_bayar', status_bayar);
   if (tanggal) {
-    // Bangun rentang awal/akhir hari secara eksplisit di JS (bukan
-    // string template tanpa timezone) agar filter konsisten dengan
-    // zona waktu lokal dan planner Postgres dapat memakai index
-    // idx_penjualan_tanggal / idx_penjualan_cabang_tanggal dengan baik.
     const mulai = `${tanggal}T00:00:00.000Z`;
     const selesai = `${tanggal}T23:59:59.999Z`;
     query = query.gte('tanggal_kirim', mulai).lte('tanggal_kirim', selesai);
@@ -47,18 +70,13 @@ async function formTambahPenjualan(req, res) {
   const { data: pelangganList } = await supabaseAdmin.from('master_pelanggan').select('id, nomor_pelanggan, nama, kategori').eq('is_aktif', true).order('nama');
   const { data: produkList } = await supabaseAdmin.from('master_produk').select('*').eq('is_aktif', true).order('nama_produk');
 
-  // Promo v2: pisahkan jenis potongan_akhir dan potongan_ongkir
   const { data: promoData } = await supabaseAdmin.from('master_promo_v2').select('*').eq('is_aktif', true);
   const promoAkhirList = (promoData || []).filter(p => p.tipe_promo === 'potongan_akhir');
   const promoOngkirList = (promoData || []).filter(p => p.tipe_promo === 'potongan_ongkir');
 
-  // Stok tersedia per produk (Fresh & Frozen) di cabang user
   const cabangId = user.role === 'owner' ? (req.query.cabang_id || user.cabangId) : user.cabangId;
   const { data: stokList } = await supabaseAdmin.from('stok_produk').select('produk_id, status, jumlah').eq('cabang_id', cabangId);
 
-  // Jika admin baru saja membuat pelanggan baru dari form ini (lewat tombol
-  // "Tambah Pelanggan Baru" di hasil pencarian kosong), pastikan pelanggan
-  // tersebut ikut dalam daftar agar bisa langsung muncul terpilih.
   let pelangganListFinal = pelangganList || [];
   const { pelanggan_baru_id } = req.query;
   if (pelanggan_baru_id && !pelangganListFinal.some(p => p.id === pelanggan_baru_id)) {
@@ -76,10 +94,6 @@ async function formTambahPenjualan(req, res) {
   });
 }
 
-/**
- * Endpoint AJAX: cek apakah stok produk (Fresh/Frozen) di cabang tertentu
- * cukup untuk jumlah yang diminta.
- */
 async function cekStokPenjualan(req, res) {
   const { items, status_produk, cabang_id } = req.body;
   if (!items || !Array.isArray(items) || items.length === 0) {
@@ -123,12 +137,6 @@ function hargaUntukKategori(produk, kategori) {
   return Number(produk.harga_jual_default);
 }
 
-/**
- * Menyusun detailRows (item penjualan) dari req.body, dengan diskon
- * PER ITEM yang diinput manual langsung di form (jenis Flat atau
- * Persen, beserta nilainya) — bukan dari Master Diskon.
- * Rumus: Subtotal Baris = (Harga Satuan - Diskon Per Satuan) x Jumlah
- */
 function susunDetailRows(body, produkMap, kategoriPelanggan) {
   let produkIds = body.produk_id;
   let jumlahArr = body.jumlah;
@@ -175,10 +183,6 @@ function susunDetailRows(body, produkMap, kategoriPelanggan) {
   return detailRows;
 }
 
-/**
- * Menghitung nilai potongan dari sebuah promo, mendukung bentuk
- * flat (nominal Rupiah tetap) maupun persen (dihitung dari basis).
- */
 function hitungPotonganPromo(promo, basis) {
   if (!promo) return 0;
   if (promo.bentuk_potongan === 'persen') {
@@ -207,12 +211,10 @@ async function simpanTambahPenjualan(req, res) {
   const izinkanStokNegatif = konfirmasi_stok_kurang === '1';
 
   try {
-    // Ambil data pelanggan untuk tentukan harga sesuai kategori
     const { data: pelanggan, error: errPelanggan } = await supabaseAdmin
       .from('master_pelanggan').select('*').eq('id', pelanggan_id).single();
     if (errPelanggan || !pelanggan) throw new Error('Pelanggan tidak ditemukan');
 
-    // Ambil data produk yang dipilih
     let produkIdsForQuery = req.body.produk_id;
     if (!Array.isArray(produkIdsForQuery)) produkIdsForQuery = [produkIdsForQuery];
     const { data: produkData, error: errProduk } = await supabaseAdmin
@@ -220,7 +222,6 @@ async function simpanTambahPenjualan(req, res) {
     if (errProduk) throw errProduk;
     const produkMap = new Map(produkData.map(p => [p.id, p]));
 
-    // Susun detail dengan diskon PER ITEM
     const detailRows = susunDetailRows(req.body, produkMap, pelanggan.kategori);
     if (detailRows.length === 0) throw new Error('Tidak ada item produk yang valid.');
 
@@ -228,8 +229,6 @@ async function simpanTambahPenjualan(req, res) {
     const totalDiskonItem = detailRows.reduce((s, d) => s + (d.diskon_nominal * d.jumlah), 0);
     let totalSetelahDiskonItem = detailRows.reduce((s, d) => s + d.subtotal, 0);
 
-    // Promo Potongan Akhir Nota (memotong total, bukan harga satuan)
-    // Mendukung flat (Rupiah) maupun persen (dari totalSetelahDiskonItem).
     let potonganAkhir = 0;
     if (promo_v2_id) {
       const { data: promo } = await supabaseAdmin.from('master_promo_v2').select('*').eq('id', promo_v2_id).eq('tipe_promo', 'potongan_akhir').maybeSingle();
@@ -238,7 +237,6 @@ async function simpanTambahPenjualan(req, res) {
 
     const totalAkhir = Math.max(0, totalSetelahDiskonItem - potonganAkhir);
 
-    // Promo Potongan Ongkir — basis persen dihitung dari ongkir_aktual
     let potonganOngkir = 0;
     if (promo_ongkir_id) {
       const { data: promo } = await supabaseAdmin.from('master_promo_v2').select('*').eq('id', promo_ongkir_id).eq('tipe_promo', 'potongan_ongkir').maybeSingle();
@@ -251,7 +249,6 @@ async function simpanTambahPenjualan(req, res) {
     if (dibayar >= totalAkhir && totalAkhir > 0) statusBayarFinal = 'lunas';
     else if (dibayar > 0 && dibayar < totalAkhir) statusBayarFinal = 'sebagian';
 
-    // Simpan header penjualan
     const { data: penjualan, error: errInsert } = await supabaseAdmin
       .from('penjualan')
       .insert({
@@ -263,7 +260,7 @@ async function simpanTambahPenjualan(req, res) {
         tanggal_kirim: metode_ambil_kirim === 'dikirim' && tanggal_kirim ? tanggal_kirim : null,
         jam_kirim: metode_ambil_kirim === 'dikirim' && jam_kirim ? jam_kirim : null,
         subtotal: subtotalKeseluruhan,
-        diskon_nominal: totalDiskonItem + potonganAkhir, // total diskon gabungan (item + promo akhir) untuk ringkasan
+        diskon_nominal: totalDiskonItem + potonganAkhir,
         promo_v2_id: promo_v2_id || null,
         promo_ongkir_id: promo_ongkir_id || null,
         total: totalAkhir,
@@ -279,12 +276,10 @@ async function simpanTambahPenjualan(req, res) {
       .select().single();
     if (errInsert) throw errInsert;
 
-    // Simpan detail (dengan diskon per item tersimpan akurat di penjualan_detail)
     const detailToInsert = detailRows.map(d => ({ ...d, penjualan_id: penjualan.id }));
     const { error: errDetail } = await supabaseAdmin.from('penjualan_detail').insert(detailToInsert);
     if (errDetail) throw errDetail;
 
-    // Kurangi stok produk sesuai status Fresh/Frozen
     for (const d of detailRows) {
       await ubahStokProduk({
         produkId: d.produk_id, cabangId: cabangFinal, status: status_produk || 'fresh',
@@ -294,7 +289,6 @@ async function simpanTambahPenjualan(req, res) {
       });
     }
 
-    // Catat ke kas ledger jika ada pembayaran masuk
     if (dibayar > 0) {
       await catatMutasiKas({
         cabangId: cabangFinal, jenis: 'penjualan', jumlah: dibayar,
@@ -303,7 +297,6 @@ async function simpanTambahPenjualan(req, res) {
       });
     }
 
-    // Ongkir yang sudah dibayar dicatat terpisah dari omzet
     if (status_ongkir === 'sudah_dibayar' && ongkirAktualSetelahPotongan > 0 && ongkir_dibayar_oleh === 'pelanggan') {
       await catatMutasiKas({
         cabangId: cabangFinal, jenis: 'ongkir', jumlah: ongkirAktualSetelahPotongan,
@@ -351,12 +344,6 @@ async function tandaiSelesai(req, res) {
   }
   res.redirect(`/penjualan/${id}`);
 }
-
-// ============================================================
-// Edit Riwayat Penjualan (Bagian 4)
-// Owner: perubahan langsung diterapkan ke database.
-// Admin: perubahan masuk Approval Queue, menunggu Owner.
-// ============================================================
 
 async function formEditPenjualan(req, res) {
   const { id } = req.params;
@@ -457,17 +444,34 @@ async function simpanEditPenjualan(req, res) {
     };
 
     if (user.role === 'owner') {
+      // MODIFIKASI: 1. Kembalikan stok lama ke gudang terlebih dahulu
+      await balikkanMutasiStokPenjualan(penjualanLama, user);
+
       // Owner: perubahan langsung diterapkan
       const { data: penjualanBaru, error: errUpdate } = await supabaseAdmin
         .from('penjualan').update(dataHeaderBaru).eq('id', id).select().single();
       if (errUpdate) throw errUpdate;
 
-      // Ganti seluruh detail (hapus lama, insert baru) — sederhana & aman
-      // karena histori mutasi stok terpisah dan tidak ikut terhapus.
+      // Ganti seluruh detail (hapus lama, insert baru)
       await supabaseAdmin.from('penjualan_detail').delete().eq('penjualan_id', id);
       const detailToInsert = detailRows.map(d => ({ ...d, penjualan_id: id }));
       if (detailToInsert.length > 0) {
         await supabaseAdmin.from('penjualan_detail').insert(detailToInsert);
+      }
+
+      // MODIFIKASI: 2. Potong stok berdasarkan item baru hasil edit Owner
+      for (const d of detailRows) {
+        await ubahStokProduk({
+          produkId: d.produk_id, 
+          cabangId: penjualanLama.cabang_id, 
+          status: status_produk || 'fresh',
+          jumlahPerubahan: -d.jumlah, // Nilai negatif untuk memotong stok penjualan baru
+          referensiTipe: 'penjualan', 
+          referensiId: id,
+          keterangan: `Penjualan ${penjualanLama.nomor_order} (Hasil Edit Owner)`, 
+          userId: user.id,
+          izinkanStokNegatif: true,
+        });
       }
 
       await catatAudit({ tabel: 'penjualan', recordId: id, aksi: 'update', dataLama: penjualanLama, dataBaru: penjualanBaru, userId: user.id });
