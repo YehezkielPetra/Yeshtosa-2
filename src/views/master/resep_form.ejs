@@ -1,46 +1,205 @@
 <% layout('layouts/main') -%>
 
-<div class="max-w-2xl">
-  <div class="panel p-5">
-    <p class="text-xs text-ink/40 mb-4">Tentukan berapa banyak setiap bahan baku dibutuhkan untuk membuat <strong>1 pcs</strong> <%= produk.nama_produk %>. Jika produk ini tidak memakai suatu bahan (misal Gogos Tanpa Isi tidak memakai Ikan Tuna), cukup jangan tambahkan bahan tersebut ke daftar.</p>
-
-    <form action="/master/resep/<%= produk.id %>/edit" method="POST" class="space-y-4">
-      <div id="resep-container" class="space-y-2"></div>
-      <button type="button" onclick="tambahBaris()" class="text-clay text-xs font-medium hover:underline">+ Tambah bahan baku</button>
-
-      <div class="flex gap-3 pt-4">
-        <button type="submit" class="btn-primary">Simpan Resep</button>
-        <a href="/master/resep" class="btn-secondary">Batal</a>
-      </div>
-    </form>
+<div class="max-w-4xl space-y-5">
+  <div class="panel p-5 bg-white">
+    <h2 class="text-sm font-semibold text-ink mb-1">Pengaturan Formula Resep Masak (Sistem Batch Terpisah)</h2>
+    <p class="text-xs text-ink/40">
+      Dapur Yeshtosa beroperasi menggunakan 2 sub-proses memasak yang independen (Ketan &amp; Isian Ikan). 
+      Silakan isi takaran adonan masak standar dan tentukan target hasil gogos (pcs) untuk masing-masing kelompok adonan di bawah ini.
+    </p>
   </div>
+
+  <form action="/master/resep/<%= produk.id %>/edit" method="POST" id="form-resep-batch" class="space-y-5">
+    
+    <div class="panel p-5 bg-white border-l-4 border-l-gold">
+      <div class="flex flex-wrap justify-between items-center gap-3 border-b border-line pb-3 mb-4">
+        <div>
+          <h3 class="text-sm font-bold text-ink flex items-center gap-2">
+            <span class="status-dot bg-gold"></span> 1. Kelompok Adonan Beras Ketan
+          </h3>
+          <p class="text-[11px] text-ink/40 mt-0.5">Masukkan takaran bahan utama ketan, santan, daun, dan bumbu ketan harian.</p>
+        </div>
+        <div class="w-36 shrink-0">
+          <label class="text-[11px] font-semibold uppercase tracking-wide text-ink/60 block mb-1">Target Hasil (Pcs)</label>
+          <input type="number" id="target_ketan_global" min="1" class="input-field text-sm font-bold text-clay text-center" placeholder="Misal: 40" oninput="sinkronkanTargetHasil()">
+        </div>
+      </div>
+
+      <div class="space-y-2">
+        <div class="grid grid-cols-12 gap-2 px-1 text-[11px] font-semibold uppercase tracking-wide text-ink/40 bg-cream/60 p-2 rounded">
+          <div class="col-span-5">Nama Bahan Baku / Pelengkap</div>
+          <div class="col-span-4">Takaran per Batch Masak</div>
+          <div class="col-span-2 text-center">Target (Pcs)</div>
+          <div class="col-span-1"></div>
+        </div>
+        <div id="ketan-container" class="space-y-2"></div>
+        <button type="button" onclick="tambahBarisKetan()" class="text-clay text-xs font-medium mt-2 inline-block hover:underline">+ Tambah Bahan ke Adonan Ketan</button>
+      </div>
+    </div>
+
+    <div class="panel p-5 bg-white border-l-4 border-l-clay">
+      <div class="flex justify-between items-center border-b border-line pb-2 mb-3">
+        <h3 class="text-sm font-semibold text-ink flex items-center gap-2"><span class="status-dot bg-clay"></span> 2. Adonan Isian Ikan Tuna</h3>
+        <div class="flex items-center gap-2">
+          <label class="text-xs font-semibold uppercase text-ink/60">Target Hasil (Pcs)</label>
+          <input type="number" id="target_ikan_global" min="1" class="input-field text-sm w-24 text-center font-bold" value="40" oninput="sinkronisasiTargetIkan(this.value)">
+        </div>
+      </div>
+      <p class="text-xs text-ink/40 mb-4">Masukkan takaran bahan utama ikan tuna, bawang merah, cabai, and bumbu isian pelengkap lainnya.</p>
+
+      <div class="space-y-2">
+        <div class="grid grid-cols-12 gap-2 px-1 text-xs font-semibold uppercase tracking-wide text-ink/50 bg-cream/60 p-2 rounded">
+          <div class="col-span-7">Bahan Isian &amp; Bumbu Dapur</div>
+          <div class="col-span-4">Takaran Masak Isian</div>
+          <div class="col-span-1"></div>
+        </div>
+        <div id="ikan-container" class="space-y-2"></div>
+      </div>
+      <button type="button" onclick="tambahBarisIkan()" class="text-clay text-xs font-medium mt-2 hover:underline">+ Tambah Bahan ke Adonan Isian</button>
+    </div>
+
+    <div class="flex gap-3 pt-2">
+      <button type="submit" class="btn-primary">Simpan Resep Batch</button>
+      <a href="/master/resep" class="btn-secondary">Batal</a>
+    </div>
+  </form>
 </div>
 
 <script>
   const BAHAN_LIST = <%- JSON.stringify(bahanList) %>;
-  const RESEP_AWAL = <%- JSON.stringify((produk.resep_produk || []).map(r => ({ bahan_baku_id: r.bahan_baku_id, jumlah_per_unit: r.jumlah_per_unit }))) %>;
+  const RESEP_AWAL = <%- JSON.stringify((produk.resep_produk || []).map(r => ({
+    bahan_baku_id: r.bahan_baku_id,
+    nama_bahan: r.bahan_baku ? r.bahan_baku.nama_bahan.toLowerCase() : '',
+    jumlah_per_batch: r.jumlah_per_batch || r.jumlah_per_unit || '',
+    target_hasil_pcs: r.target_hasil_pcs || 40
+  }))) %>;
 
   function bahanOptionsHtml(selectedId) {
-    return '<option value="">Pilih bahan baku...</option>' + BAHAN_LIST.map(b =>
+    return '<option value="">Pilih bahan...</option>' + BAHAN_LIST.map(b =>
       `<option value="${b.id}" data-satuan="${b.satuan}" ${b.id === selectedId ? 'selected' : ''}>${b.nama_bahan} (${b.satuan})</option>`
     ).join('');
   }
 
-  function tambahBaris(bahanBakuId, jumlah) {
-    const container = document.getElementById('resep-container');
+  // Menambahkan baris ke Kelompok Adonan Beras Ketan
+  function tambahBarisKetan(bahanBakuId, jmlBatch, targetHasil) {
+    // PERBAIKAN 1: Mengubah target id dari 'resep-container' ke 'ketan-container' agar sesuai dengan HTML DOM
+    const container = document.getElementById('ketan-container');
+    if (!container) return;
+    
     const div = document.createElement('div');
-    div.className = 'flex gap-2 items-center resep-row';
+    div.className = 'grid grid-cols-12 gap-2 items-center resep-row bg-white p-1 rounded border border-line/40';
+    
+    const currentTarget = targetHasil || currentTargetKetan();
+
     div.innerHTML = `
-      <select name="bahan_baku_id" class="input-field flex-1">${bahanOptionsHtml(bahanBakuId || '')}</select>
-      <input type="number" step="0.0001" name="jumlah_per_unit" min="0" value="${jumlah || ''}" placeholder="Jumlah per pcs" class="input-field w-40">
-      <button type="button" onclick="this.closest('.resep-row').remove()" class="text-warn text-sm px-2">✕</button>
+      <div class="col-span-5">
+        <select name="bahan_baku_id" class="input-field w-full text-sm" required onchange="updateSatuanLabel(this)">
+          ${bahanOptionsHtml(bahanBakuId || '')}
+        </select>
+      </div>
+      <div class="col-span-4 flex items-center gap-1.5">
+        <input type="number" step="0.0001" name="jumlah_per_batch" min="0.0001" value="${jmlBatch || ''}" placeholder="Takaran" class="input-field text-sm" required>
+        <span class="text-xs text-ink/40 w-12 truncate satuan-label">-</span>
+      </div>
+      <div class="col-span-2">
+        <input type="number" name="target_hasil_pcs" value="${currentTarget}" readonly class="input-field text-sm bg-line/20 font-semibold text-center select-target-ketan">
+      </div>
+      <div class="col-span-1 text-center">
+        <button type="button" onclick="this.closest('.resep-row').remove()" class="text-warn text-sm p-1 hover:bg-warn/5 rounded">✕</button>
+      </div>
     `;
     container.appendChild(div);
+    updateSatuanLabel(div.querySelector('select'));
   }
 
+  // Menambah baris ke kelompok Adonan Isian Ikan
+  function tambahBarisIkan(bahanBakuId, jmlBatch) {
+    const container = document.getElementById('ikan-container');
+    if (!container) return;
+    
+    const div = document.createElement('div');
+    div.className = 'grid grid-cols-12 gap-2 items-center resep-row bg-white p-1 rounded border border-line/40';
+    const currentTargetIkan = document.getElementById('target_ikan_global').value || 40;
+
+    div.innerHTML = `
+      <div class="col-span-7">
+        <select name="bahan_baku_id" class="input-field w-full text-sm" required onchange="updateSatuanLabel(this)">
+          ${bahanOptionsHtml(bahanBakuId || '')}
+        </select>
+      </div>
+      <div class="col-span-4 flex items-center gap-1.5">
+        <input type="number" step="0.0001" name="jumlah_per_batch" min="0.0001" value="${jmlBatch || ''}" placeholder="Takaran" class="input-field text-sm" required>
+        <span class="text-xs text-ink/40 w-12 truncate satuan-label">-</span>
+        <input type="hidden" name="target_hasil_pcs" class="select-target-ikan" value="${currentTargetIkan}">
+      </div>
+      <div class="col-span-1 text-center">
+        <button type="button" onclick="this.closest('.resep-row').remove()" class="text-warn text-sm p-1 hover:bg-warn/5 rounded">✕</button>
+      </div>
+    `;
+    container.appendChild(div);
+    updateSatuanLabel(div.querySelector('select'));
+  }
+
+  function currentTargetKetan() {
+    return document.getElementById('target_ketan_global').value || 40;
+  }
+
+  // Sinkronisasi dinamis ketika nilai target hasil di box grup ketan diubah oleh owner
+  function sinkronkanTargetHasil() {
+    const val = currentTargetKetan();
+    document.querySelectorAll('.select-target-ketan').forEach(input => {
+      input.value = val;
+    });
+  }
+
+  // Sinkronisasi target adonan ikan ke elemen hidden input
+  function sinkronisasiTargetIkan(val) {
+    document.querySelectorAll('.select-target-ikan').forEach(input => {
+      input.value = val || 40;
+    });
+  }
+
+  function updateSatuanLabel(selectEl) {
+    if(!selectEl) return;
+    const opt = selectEl.selectedOptions[0];
+    const row = selectEl.closest('.resep-row');
+    if (!row) return;
+    const label = row.querySelector('.satuan-label');
+    if (!label) return;
+    if (opt && opt.dataset.satuan) {
+      label.textContent = opt.dataset.satuan;
+    } else {
+      label.textContent = '-';
+    }
+  }
+
+  // Logic membagi otomatis data awal database ke grup visual yang tepat saat halaman dimuat
   if (RESEP_AWAL.length > 0) {
-    RESEP_AWAL.forEach(r => tambahBaris(r.bahan_baku_id, r.jumlah_per_unit));
+    // Cari target hasil ketan awal dari item ketan yang ada
+    const itemKetanAwal = RESEP_AWAL.find(r => r.nama_bahan.includes('beras') || r.nama_bahan.includes('ketan'));
+    if (itemKetanAwal) {
+      document.getElementById('target_ketan_global').value = itemKetanAwal.target_hasil_pcs;
+    } else {
+      document.getElementById('target_ketan_global').value = RESEP_AWAL[0].target_hasil_pcs;
+    }
+
+    // Cari target hasil ikan awal dari item ikan tuna
+    const itemIkanAwal = RESEP_AWAL.find(r => r.nama_bahan.includes('tuna') || r.nama_bahan.includes('ikan'));
+    if (itemIkanAwal) {
+      document.getElementById('target_ikan_global').value = itemIkanAwal.target_hasil_pcs;
+    }
+
+    RESEP_AWAL.forEach(r => {
+      // Kelompokkan bumbu/bahan pelengkap berdasarkan kata kuncinya
+      if (r.nama_bahan.includes('beras') || r.nama_bahan.includes('ketan') || r.nama_bahan.includes('santan') || r.nama_bahan.includes('daun')) {
+        tambahBarisKetan(r.bahan_baku_id, r.jumlah_per_batch, r.target_hasil_pcs);
+      } else {
+        tambahBarisIkan(r.bahan_baku_id, r.jumlah_per_batch);
+      }
+    });
   } else {
-    tambahBaris();
+    document.getElementById('target_ketan_global').value = 40;
+    tambahBarisKetan();
+    tambahBarisIkan();
   }
 </script>

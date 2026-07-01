@@ -87,8 +87,43 @@ async function listProduksi(req, res) {
   res.render('produksi/list', { title: 'Produksi', produksiList: data || [] });
 }
 
+/**
+ * Mengambil daftar produk aktif, masing-masing disertai koefisien
+ * (gramasi, dalam kg) pemakaian Beras Ketan per 1 pcs — diambil dari
+ * resep_produk yang bahan_baku_id-nya cocok dengan "Beras Ketan" di
+ * master_bahan_baku. Dipakai oleh fitur Simulasi & Optimasi Sisa
+ * Adonan (Production Yield Optimizer) di form produksi.
+ */
+async function ambilProdukListDenganKoefisienKetan() {
+  const { data: produkListRaw } = await supabaseAdmin.from('master_produk').select('*').eq('is_aktif', true).order('nama_produk');
+
+  const { data: bahanKetan } = await supabaseAdmin
+    .from('master_bahan_baku')
+    .select('id')
+    .ilike('nama_bahan', '%beras ketan%')
+    .maybeSingle();
+
+  let koefisienKetanMap = new Map();
+  if (bahanKetan) {
+    const { data: resepKetan } = await supabaseAdmin
+      .from('resep_produk')
+      .select('produk_id, jumlah_per_unit')
+      .eq('bahan_baku_id', bahanKetan.id);
+    koefisienKetanMap = new Map((resepKetan || []).map(r => [r.produk_id, Number(r.jumlah_per_unit)]));
+  }
+
+  return (produkListRaw || []).map(p => ({
+    ...p,
+    koefisien_ketan: koefisienKetanMap.get(p.id) || 0,
+  }));
+}
+
 async function formTambahProduksi(req, res) {
-  const { data: produkList } = await supabaseAdmin.from('master_produk').select('*').eq('is_aktif', true).order('nama_produk');
+  // --- Production Yield Optimizer: setiap produk disertai koefisien
+  // Beras Ketan (kg) supaya JavaScript di frontend bisa menghitung
+  // berat ketan terpakai secara real-time per baris item tanpa perlu
+  // request tambahan ke server.
+  const produkList = await ambilProdukListDenganKoefisienKetan();
 
   // Pesanan yang belum selesai bisa dijadikan referensi produksi
   const user = req.session.user;
@@ -208,7 +243,7 @@ async function formEditProduksi(req, res) {
     return res.redirect('/produksi');
   }
 
-  const { data: produkList } = await supabaseAdmin.from('master_produk').select('*').eq('is_aktif', true).order('nama_produk');
+  const produkList = await ambilProdukListDenganKoefisienKetan();
   const user = req.session.user;
   let queryPesanan = supabaseAdmin
     .from('penjualan')

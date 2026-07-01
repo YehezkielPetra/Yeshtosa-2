@@ -1,8 +1,14 @@
 <% layout('layouts/main') -%>
 
 <div class="max-w-2xl">
+  <% if (typeof isAdminPengajuan !== 'undefined' && isAdminPengajuan) { %>
+    <div class="rounded-md bg-clay/10 border border-clay/30 text-clay-dark px-4 py-2.5 text-sm mb-4">
+      Perubahan yang Anda simpan tidak langsung berlaku. Permohonan akan masuk antrean persetujuan dan menunggu keputusan Owner.
+    </div>
+  <% } %>
+
   <div class="panel p-5">
-    <form action="/pembelian/tambah" method="POST" class="space-y-4" id="form-pembelian">
+    <form action="<%= (typeof isEdit !== 'undefined' && isEdit) ? `/pembelian/${pembelian.id}/edit` : '/pembelian/tambah' %>" method="POST" class="space-y-4" id="form-pembelian">
       <div>
         <label class="label-field">Supplier</label>
         <div class="combo-wrap" data-name="supplier_id">
@@ -27,7 +33,7 @@
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label class="label-field">Jumlah Dibayar Sekarang (Rp)</label>
-          <input type="number" step="0.01" name="total_dibayar" id="total_dibayar" class="input-field" value="0">
+          <input type="number" step="0.01" name="total_dibayar" id="total_dibayar" class="input-field" value="<%= (typeof pembelian !== 'undefined' && pembelian) ? pembelian.total_dibayar : 0 %>">
         </div>
         <div>
           <label class="label-field">Status Bayar</label>
@@ -38,12 +44,28 @@
 
       <div>
         <label class="label-field">Catatan</label>
-        <textarea name="catatan" rows="2" class="input-field"></textarea>
+        <textarea name="catatan" rows="2" class="input-field"><%= (typeof pembelian !== 'undefined' && pembelian && pembelian.catatan) ? pembelian.catatan : '' %></textarea>
       </div>
 
+      <% if (typeof isAdminPengajuan !== 'undefined' && isAdminPengajuan) { %>
+        <div>
+          <label class="label-field">Alasan Perubahan</label>
+          <textarea name="alasan_perubahan" rows="2" class="input-field" placeholder="Jelaskan alasan pengajuan perubahan ini..." required></textarea>
+        </div>
+      <% } %>
+
       <div class="flex gap-3 pt-2">
-        <button type="submit" class="btn-primary">Simpan Pembelian</button>
-        <a href="/pembelian" class="btn-secondary">Batal</a>
+        <% if (typeof isEdit !== 'undefined' && isEdit) { %>
+          <% if (typeof isAdminPengajuan !== 'undefined' && isAdminPengajuan) { %>
+            <button type="submit" class="btn-primary">Ajukan Edit Pembelian</button>
+          <% } else { %>
+            <button type="submit" class="btn-primary">Simpan Perubahan</button>
+          <% } %>
+          <a href="/pembelian/<%= pembelian.id %>" class="btn-secondary">Batal</a>
+        <% } else { %>
+          <button type="submit" class="btn-primary">Simpan Pembelian</button>
+          <a href="/pembelian" class="btn-secondary">Batal</a>
+        <% } %>
       </div>
     </form>
   </div>
@@ -53,8 +75,15 @@
   const SUPPLIER_LIST = <%- JSON.stringify(supplierList) %>;
   const BAHAN_LIST = <%- JSON.stringify(bahanList) %>;
   const SUPPLIER_BAHAN_LIST = <%- JSON.stringify(supplierBahanList) %>;
+  const IS_EDIT = <%- (typeof isEdit !== 'undefined' && isEdit) ? 'true' : 'false' %>;
+  const PEMBELIAN_AWAL = <%- (typeof pembelian !== 'undefined' && pembelian) ? JSON.stringify({
+    supplier_id: pembelian.supplier_id,
+    total_dibayar: pembelian.total_dibayar,
+    status_bayar: pembelian.status_bayar,
+    detail: (pembelian.pembelian_detail || []).map(d => ({ bahan_baku_id: d.bahan_baku_id, jumlah: d.jumlah, harga_satuan: d.harga_satuan })),
+  }) : 'null' %>;
   let itemCount = 0;
-  let supplierTerpilihId = null;
+  let supplierTerpilihId = PEMBELIAN_AWAL ? PEMBELIAN_AWAL.supplier_id : null;
 
   // --- Combobox Supplier ---
   const supplierItems = SUPPLIER_LIST.map(s => ({
@@ -63,9 +92,11 @@
     searchText: `${s.nomor_supplier} ${s.nama}`,
   }));
   initCombobox(document.querySelector('[data-name="supplier_id"]'), supplierItems, {
+    initialId: supplierTerpilihId || null,
     onSelect(item) {
+      const supplierBerubah = supplierTerpilihId !== item.id;
       supplierTerpilihId = item.id;
-      onSupplierBerubah();
+      onSupplierBerubah(supplierBerubah);
     },
   });
 
@@ -92,11 +123,11 @@
   /**
    * Dipanggil setiap kali supplier yang dipilih berubah. Daftar item
    * pada SEMUA baris yang sudah ada diperbarui otomatis agar hanya
-   * menampilkan item milik supplier tersebut; baris item yang ada
-   * juga dikosongkan ulang karena pilihan bahan baku sebelumnya
-   * (dari supplier lain) sudah tidak valid lagi.
+   * menampilkan item milik supplier tersebut. Baris item lama HANYA
+   * direset jika supplier benar-benar berganti (bukan saat prefill
+   * awal formulir edit dengan supplier yang sama).
    */
-  function onSupplierBerubah() {
+  function onSupplierBerubah(supplierBerubah) {
     const bahanItemsBaru = bahanItemsUntukSupplier(supplierTerpilihId);
 
     document.getElementById('pesan-belum-pilih-supplier').classList.add('hidden');
@@ -112,6 +143,15 @@
     document.getElementById('pesan-supplier-kosong').classList.add('hidden');
     document.getElementById('btn-tambah-item').classList.remove('hidden');
 
+    if (supplierBerubah === false && PEMBELIAN_AWAL && PEMBELIAN_AWAL.detail.length > 0) {
+      // Prefill formulir edit: isi ulang baris sesuai data pembelian lama.
+      document.getElementById('item-container').innerHTML = '';
+      itemCount = 0;
+      PEMBELIAN_AWAL.detail.forEach(d => tambahItem(bahanItemsBaru, d));
+      updateTotal();
+      return;
+    }
+
     // Reset seluruh baris item yang sudah ada, lalu buat 1 baris baru
     // dengan daftar item yang sudah sesuai supplier terpilih.
     document.getElementById('item-container').innerHTML = '';
@@ -119,7 +159,7 @@
     tambahItem(bahanItemsBaru);
   }
 
-  function tambahItem(bahanItemsUntukBaris) {
+  function tambahItem(bahanItemsUntukBaris, itemAwal) {
     const bahanItems = bahanItemsUntukBaris || bahanItemsUntukSupplier(supplierTerpilihId);
     itemCount++;
     const idx = itemCount;
@@ -132,13 +172,14 @@
         <input type="hidden" name="bahan_baku_id" class="combo-value bahan-select">
         <div class="combo-dropdown hidden"></div>
       </div>
-      <input type="number" step="0.01" name="jumlah" min="0.01" value="1" class="input-field w-24 jumlah-input">
-      <input type="number" step="0.01" name="harga_satuan" placeholder="Harga satuan" class="input-field w-32 harga-input">
+      <input type="number" step="0.01" name="jumlah" min="0.01" value="${itemAwal ? itemAwal.jumlah : 1}" class="input-field w-24 jumlah-input">
+      <input type="number" step="0.01" name="harga_satuan" placeholder="Harga satuan" value="${itemAwal ? itemAwal.harga_satuan : ''}" class="input-field w-32 harga-input">
       <button type="button" onclick="this.closest('.item-row').remove(); updateTotal()" class="text-warn text-sm px-2">✕</button>
     `;
     container.appendChild(div);
 
     initCombobox(div.querySelector(`[data-name="bahan_baku_id_${idx}"]`), bahanItems, {
+      initialId: itemAwal ? itemAwal.bahan_baku_id : null,
       onSelect(item) {
         // Otomatis isi harga satuan dari harga beli terakhir supplier ini,
         // jika datanya tersedia di relasi supplier_bahan_baku.
@@ -176,4 +217,11 @@
     const totalText = document.getElementById('display-total').textContent.replace(/[^0-9]/g, '');
     updateStatusBayar(Number(totalText) || 0);
   });
+
+  // Saat form edit dibuka, supplier awal sudah diketahui lewat
+  // PEMBELIAN_AWAL — tampilkan langsung baris item lama tanpa
+  // menunggu user memilih ulang supplier di combobox.
+  if (IS_EDIT && supplierTerpilihId) {
+    onSupplierBerubah(false);
+  }
 </script>

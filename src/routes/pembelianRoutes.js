@@ -9,5 +9,7 @@ router.get('/', pembelianCtrl.listPembelian);
 router.get('/tambah', requireRole('owner', 'admin'), pembelianCtrl.formTambahPembelian);
 router.post('/tambah', requireRole('owner', 'admin'), pembelianCtrl.simpanTambahPembelian);
 router.get('/:id', pembelianCtrl.detailPembelian);
+router.get('/:id/edit', requireRole('owner', 'admin'), pembelianCtrl.formEditPembelian);
+router.post('/:id/edit', requireRole('owner', 'admin'), pembelianCtrl.simpanEditPembelian);
 
 module.exports = router;

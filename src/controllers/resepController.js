@@ -1,9 +1,8 @@
 // ============================================================
-// Resep Produk Controller
-// Mengelola gramasi/koefisien bahan baku per 1 pcs produk jadi.
-// Data resep TIDAK di-hardcode di kode aplikasi — semuanya
-// disimpan di tabel resep_produk dan dapat diubah Owner kapan
-// saja lewat halaman ini, sesuai kebutuhan dapur yang berubah.
+// Resep Produk Controller (Berbasis Batch)
+// Mengelola takaran bahan baku per batch adonan (Beras / Ikan)
+// beserta target hasil pcs gogos yang diperoleh dari batch tersebut.
+// Data ini disimpan dinamis untuk mengotomatisasi pemotongan stok produksi.
 // ============================================================
 const { supabaseAdmin } = require('../config/supabase');
 const { catatAudit } = require('../utils/auditTrail');
@@ -28,7 +27,11 @@ async function formEditResep(req, res) {
     req.flash('error', 'Produk tidak ditemukan.');
     return res.redirect('/master/resep');
   }
-  const { data: bahanList } = await supabaseAdmin.from('master_bahan_baku').select('id, nama_bahan, satuan').eq('is_aktif', true).order('nama_bahan');
+  const { data: bahanList } = await supabaseAdmin
+    .from('master_bahan_baku')
+    .select('id, nama_bahan, satuan')
+    .eq('is_aktif', true)
+    .order('nama_bahan');
 
   res.render('master/resep_form', { title: `Resep — ${produk.nama_produk}`, produk, bahanList: bahanList || [] });
 }
@@ -36,7 +39,8 @@ async function formEditResep(req, res) {
 async function simpanResep(req, res) {
   const { id } = req.params; // produk_id
   let bahanIds = req.body.bahan_baku_id;
-  let jumlahArr = req.body.jumlah_per_unit;
+  let jumlahBatchArr = req.body.jumlah_per_batch;
+  let targetHasilArr = req.body.target_hasil_pcs;
 
   try {
     if (!bahanIds) {
@@ -47,24 +51,33 @@ async function simpanResep(req, res) {
     }
     if (!Array.isArray(bahanIds)) {
       bahanIds = [bahanIds];
-      jumlahArr = [jumlahArr];
+      jumlahBatchArr = [jumlahBatchArr];
+      targetHasilArr = [targetHasilArr];
     }
 
     const { data: resepLama } = await supabaseAdmin.from('resep_produk').select('*').eq('produk_id', id);
 
-    // Strategi sederhana & aman: hapus semua baris resep produk ini,
-    // lalu insert ulang sesuai input terbaru dari form. Resep tidak
-    // punya riwayat transaksi yang perlu dijaga, jadi pendekatan ini
-    // aman dan menghindari kerumitan upsert per baris.
+    // Hapus resep lama, ganti dengan struktur data batch terbaru
     await supabaseAdmin.from('resep_produk').delete().eq('produk_id', id);
 
     const rows = bahanIds
-      .map((bahanId, idx) => ({
-        produk_id: id,
-        bahan_baku_id: bahanId,
-        jumlah_per_unit: Number(jumlahArr[idx]) || 0,
-      }))
-      .filter(r => r.bahan_baku_id && r.jumlah_per_unit > 0);
+      .map((bahanId, idx) => {
+        const jmlBatch = Number(jumlahBatchArr[idx]) || 0;
+        const targetHasil = Number(targetHasilArr[idx]) || 1;
+        
+        // Agar sistem harian tetap bekerja presisi tanpa membongkar total core database,
+        // kita simpan nilai konversi per unit (jumlah_per_unit) = jumlah_per_batch / target_hasil_pcs
+        const kgPerPcs = jmlBatch / targetHasil;
+
+        return {
+          produk_id: id,
+          bahan_baku_id: bahanId,
+          jumlah_per_batch: jmlBatch,
+          target_hasil_pcs: targetHasil,
+          jumlah_per_unit: kgPerPcs // Tetap isi untuk kompatibilitas core stok otomatis harian
+        };
+      })
+      .filter(r => r.bahan_baku_id && r.jumlah_per_batch > 0);
 
     if (rows.length > 0) {
       const { error } = await supabaseAdmin.from('resep_produk').insert(rows);
@@ -72,7 +85,7 @@ async function simpanResep(req, res) {
     }
 
     await catatAudit({ tabel: 'resep_produk', recordId: id, aksi: 'update', dataLama: resepLama, dataBaru: rows, userId: req.session.user.id });
-    req.flash('success', 'Resep berhasil diperbarui.');
+    req.flash('success', 'Resep berbasis Batch berhasil diperbarui.');
     res.redirect('/master/resep');
   } catch (err) {
     req.flash('error', 'Gagal menyimpan resep: ' + err.message);

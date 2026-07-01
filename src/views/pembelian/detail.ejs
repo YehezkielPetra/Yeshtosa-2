@@ -7,7 +7,12 @@
         <p class="font-mono text-xs text-ink/40">No. Pembelian</p>
         <h2 class="font-display text-xl font-semibold text-ink"><%= pembelian.nomor_pembelian %></h2>
       </div>
-      <%- include('../partials/status_bayar_pill', { status: pembelian.status_bayar }) %>
+      <div class="flex items-center gap-2">
+        <%- include('../partials/status_bayar_pill', { status: pembelian.status_bayar }) %>
+        <a href="/pembelian/<%= pembelian.id %>/edit" class="btn-secondary text-sm">
+          <%= currentUser.role === 'owner' ? 'Edit Pembelian' : 'Ajukan Edit Pembelian' %>
+        </a>
+      </div>
     </div>
 
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm mb-5">

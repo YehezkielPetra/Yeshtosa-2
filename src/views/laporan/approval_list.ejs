@@ -17,7 +17,8 @@
     <div class="divide-y divide-line">
       <% approvalList.forEach(a => { %>
         <% const isPenjualan = a.tabel_target === 'penjualan'; %>
-        <% const nomorNota = isPenjualan ? (a.data_lama.header ? a.data_lama.header.nomor_order : a.data_lama.nomor_order) : null; %>
+        <% const isPembelian = a.tabel_target === 'pembelian'; %>
+        <% const nomorNota = isPenjualan ? (a.data_lama.header ? a.data_lama.header.nomor_order : a.data_lama.nomor_order) : (isPembelian ? (a.data_lama.header ? a.data_lama.header.nomor_pembelian : a.data_lama.nomor_pembelian) : null); %>
         <div class="p-4">
           <div class="flex items-center justify-between gap-3 flex-wrap">
             <div class="flex items-center gap-3">
@@ -55,6 +56,31 @@
                   <div class="flex justify-between"><span class="text-ink/50">Diskon</span><span class="<%= lamaHeader.diskon_nominal !== baruHeader.diskon_nominal ? 'text-clay-dark' : '' %>"><%= rupiah(baruHeader.diskon_nominal) %></span></div>
                   <div class="flex justify-between"><span class="text-ink/50">Status Bayar</span><span class="capitalize <%= lamaHeader.status_bayar !== baruHeader.status_bayar ? 'text-clay-dark' : '' %>"><%= baruHeader.status_bayar %></span></div>
                   <div class="flex justify-between"><span class="text-ink/50">Metode</span><span class="capitalize <%= lamaHeader.metode_ambil_kirim !== baruHeader.metode_ambil_kirim ? 'text-clay-dark' : '' %>"><%= baruHeader.metode_ambil_kirim %></span></div>
+                </div>
+              </div>
+            </div>
+          <% } %>
+
+          <% if (isPembelian && a.jenis_perubahan === 'edit' && a.data_baru && a.data_baru.header) { %>
+            <% const lamaHeaderBeli = a.data_lama.header || a.data_lama; %>
+            <% const baruHeaderBeli = a.data_baru.header; %>
+            <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+              <div class="border border-line rounded-md p-3 bg-cream/50">
+                <p class="text-xs font-semibold uppercase text-ink/40 mb-2">Data Lama</p>
+                <div class="space-y-1">
+                  <div class="flex justify-between"><span class="text-ink/50">Total</span><span class="font-medium"><%= rupiah(lamaHeaderBeli.total) %></span></div>
+                  <div class="flex justify-between"><span class="text-ink/50">Dibayar</span><span><%= rupiah(lamaHeaderBeli.total_dibayar) %></span></div>
+                  <div class="flex justify-between"><span class="text-ink/50">Status Bayar</span><span class="capitalize"><%= lamaHeaderBeli.status_bayar %></span></div>
+                  <div class="flex justify-between"><span class="text-ink/50">Jumlah Item</span><span><%= (a.data_lama.detail || []).length %> bahan</span></div>
+                </div>
+              </div>
+              <div class="border border-clay/30 rounded-md p-3 bg-clay/5">
+                <p class="text-xs font-semibold uppercase text-clay-dark mb-2">Usulan Baru</p>
+                <div class="space-y-1">
+                  <div class="flex justify-between"><span class="text-ink/50">Total</span><span class="font-medium <%= lamaHeaderBeli.total !== baruHeaderBeli.total ? 'text-clay-dark' : '' %>"><%= rupiah(baruHeaderBeli.total) %></span></div>
+                  <div class="flex justify-between"><span class="text-ink/50">Dibayar</span><span class="<%= lamaHeaderBeli.total_dibayar !== baruHeaderBeli.total_dibayar ? 'text-clay-dark' : '' %>"><%= rupiah(baruHeaderBeli.total_dibayar) %></span></div>
+                  <div class="flex justify-between"><span class="text-ink/50">Status Bayar</span><span class="capitalize <%= lamaHeaderBeli.status_bayar !== baruHeaderBeli.status_bayar ? 'text-clay-dark' : '' %>"><%= baruHeaderBeli.status_bayar %></span></div>
+                  <div class="flex justify-between"><span class="text-ink/50">Jumlah Item</span><span class="<%= (a.data_lama.detail || []).length !== (a.data_baru.detail || []).length ? 'text-clay-dark' : '' %>"><%= (a.data_baru.detail || []).length %> bahan</span></div>
                 </div>
               </div>
             </div>

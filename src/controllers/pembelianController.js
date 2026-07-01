@@ -141,4 +141,214 @@ async function detailPembelian(req, res) {
   res.render('pembelian/detail', { title: `Detail ${pembelian.nomor_pembelian}`, pembelian });
 }
 
-module.exports = { listPembelian, formTambahPembelian, simpanTambahPembelian, detailPembelian };
+// ============================================================
+// Edit Pembelian (Bagian: Approval Queue)
+// Owner: perubahan langsung diterapkan (stok & kas dibalik lalu
+// diterapkan ulang sesuai data baru).
+// Admin: perubahan masuk Approval Queue, menunggu Owner. Stok &
+// kas TIDAK berubah sampai Owner menyetujui pengajuan, sehingga
+// pembukuan tidak langsung rusak oleh pengajuan Admin.
+// ============================================================
+
+/**
+ * Membalik mutasi stok bahan baku & mutasi kas (pembayaran) dari
+ * satu pembelian, berdasarkan pembelian_detail yang tercatat saat
+ * ini. Dipakai sebelum menerapkan versi baru saat edit (baik oleh
+ * Owner langsung, maupun oleh Owner saat menyetujui pengajuan Admin).
+ * Tidak menghapus baris pembelian, hanya mengembalikan efeknya.
+ */
+async function balikkanMutasiPembelian(pembelianLama, user) {
+  const { data: detailLama } = await supabaseAdmin
+    .from('pembelian_detail').select('*').eq('pembelian_id', pembelianLama.id);
+
+  for (const d of detailLama || []) {
+    await ubahStokBahanBaku({
+      bahanBakuId: d.bahan_baku_id, cabangId: pembelianLama.cabang_id,
+      jumlahPerubahan: -Number(d.jumlah), referensiTipe: 'koreksi_pembelian', referensiId: pembelianLama.id,
+      keterangan: `Pembalikan stok karena edit pembelian ${pembelianLama.nomor_pembelian}`, userId: user.id,
+    });
+  }
+
+  if (Number(pembelianLama.total_dibayar) > 0) {
+    await catatMutasiKas({
+      cabangId: pembelianLama.cabang_id, jenis: 'penyesuaian', jumlah: Number(pembelianLama.total_dibayar),
+      referensiTipe: 'koreksi_pembelian', referensiId: pembelianLama.id,
+      keterangan: `Pembalikan pembayaran karena edit pembelian ${pembelianLama.nomor_pembelian}`, userId: user.id,
+    });
+  }
+
+  await supabaseAdmin.from('pembelian_detail').delete().eq('pembelian_id', pembelianLama.id);
+}
+
+/**
+ * Menerapkan header + detail baru ke satu pembelian (dipakai oleh
+ * Owner saat edit langsung, maupun saat menyetujui pengajuan Admin
+ * dari approval_queue). Mengasumsikan mutasi lama SUDAH dibalik
+ * lewat balikkanMutasiPembelian sebelum fungsi ini dipanggil.
+ */
+async function terapkanDataPembelianBaru({ pembelianId, supplierId, cabangId, headerBaru, detailRows, nomorPembelian, user, keteranganSuffix = '' }) {
+  const { error: errUpdate } = await supabaseAdmin.from('pembelian').update(headerBaru).eq('id', pembelianId);
+  if (errUpdate) throw errUpdate;
+
+  const detailToInsert = detailRows.map(d => ({ ...d, pembelian_id: pembelianId }));
+  if (detailToInsert.length > 0) {
+    await supabaseAdmin.from('pembelian_detail').insert(detailToInsert);
+  }
+
+  for (const d of detailRows) {
+    await ubahStokBahanBaku({
+      bahanBakuId: d.bahan_baku_id, cabangId, jumlahPerubahan: d.jumlah,
+      referensiTipe: 'pembelian', referensiId: pembelianId,
+      keterangan: `Pembelian ${nomorPembelian}${keteranganSuffix}`, userId: user.id,
+    });
+
+    const { data: existingRelasi } = await supabaseAdmin
+      .from('supplier_bahan_baku').select('*').eq('supplier_id', supplierId).eq('bahan_baku_id', d.bahan_baku_id).maybeSingle();
+    if (existingRelasi) {
+      await supabaseAdmin.from('supplier_bahan_baku')
+        .update({ harga_beli_terakhir: d.harga_satuan, updated_at: new Date().toISOString() })
+        .eq('id', existingRelasi.id);
+    } else {
+      await supabaseAdmin.from('supplier_bahan_baku')
+        .insert({ supplier_id: supplierId, bahan_baku_id: d.bahan_baku_id, harga_beli_terakhir: d.harga_satuan });
+    }
+  }
+
+  if (Number(headerBaru.total_dibayar) > 0) {
+    await catatMutasiKas({
+      cabangId, jenis: 'pembelian', jumlah: -Number(headerBaru.total_dibayar),
+      referensiTipe: 'pembelian', referensiId: pembelianId,
+      keterangan: `Pembayaran pembelian ${nomorPembelian}${keteranganSuffix}`, userId: user.id,
+    });
+  }
+}
+
+/**
+ * Menyusun detailRows + header ringkas dari req.body, dipakai oleh
+ * simpanEditPembelian (formulir tambah tetap pakai logikanya sendiri
+ * agar tidak mengubah perilaku yang sudah berjalan aman).
+ */
+function susunPembelianDariBody(body) {
+  const { total_dibayar, status_bayar, catatan } = body;
+  let bahanIds = body.bahan_baku_id;
+  let jumlahArr = body.jumlah;
+  let hargaArr = body.harga_satuan;
+
+  if (!bahanIds) return null;
+  if (!Array.isArray(bahanIds)) {
+    bahanIds = [bahanIds];
+    jumlahArr = [jumlahArr];
+    hargaArr = [hargaArr];
+  }
+
+  let total = 0;
+  const detailRows = [];
+  for (let i = 0; i < bahanIds.length; i++) {
+    const jumlah = Number(jumlahArr[i]);
+    const harga = Number(hargaArr[i]);
+    if (!jumlah || jumlah <= 0) continue;
+    const subtotal = jumlah * harga;
+    total += subtotal;
+    detailRows.push({ bahan_baku_id: bahanIds[i], jumlah, harga_satuan: harga, subtotal });
+  }
+  if (detailRows.length === 0) return null;
+
+  const dibayar = Number(total_dibayar) || 0;
+  let statusBayarFinal = status_bayar || 'belum_bayar';
+  if (dibayar >= total && total > 0) statusBayarFinal = 'lunas';
+  else if (dibayar > 0 && dibayar < total) statusBayarFinal = 'sebagian';
+
+  return { detailRows, total, dibayar, statusBayarFinal, catatan };
+}
+
+async function formEditPembelian(req, res) {
+  const { id } = req.params;
+  const user = req.session.user;
+
+  const { data: pembelian, error } = await supabaseAdmin
+    .from('pembelian')
+    .select('*, pembelian_detail(*, bahan_baku:bahan_baku_id(nama_bahan, satuan))')
+    .eq('id', id).single();
+  if (error || !pembelian) {
+    req.flash('error', 'Pembelian tidak ditemukan.');
+    return res.redirect('/pembelian');
+  }
+
+  const { data: supplierList } = await supabaseAdmin.from('master_supplier').select('id, nomor_supplier, nama').eq('is_aktif', true).order('nama');
+  const { data: bahanList } = await supabaseAdmin.from('master_bahan_baku').select('*').eq('is_aktif', true).order('nama_bahan');
+  const { data: supplierBahanList } = await supabaseAdmin
+    .from('supplier_bahan_baku')
+    .select('supplier_id, bahan_baku_id, harga_beli_terakhir');
+
+  res.render('pembelian/form', {
+    title: 'Edit Pembelian', pembelian,
+    supplierList: supplierList || [], bahanList: bahanList || [], supplierBahanList: supplierBahanList || [],
+    isEdit: true, isAdminPengajuan: user.role === 'admin',
+  });
+}
+
+async function simpanEditPembelian(req, res) {
+  const { id } = req.params;
+  const user = req.session.user;
+  const { alasan_perubahan } = req.body;
+
+  const susunan = susunPembelianDariBody(req.body);
+  if (!susunan) {
+    req.flash('error', 'Minimal 1 bahan baku harus diisi.');
+    return res.redirect(`/pembelian/${id}/edit`);
+  }
+  const { detailRows, total, dibayar, statusBayarFinal, catatan } = susunan;
+
+  try {
+    const { data: pembelianLama, error: errLama } = await supabaseAdmin
+      .from('pembelian').select('*, pembelian_detail(*)').eq('id', id).single();
+    if (errLama || !pembelianLama) throw new Error('Pembelian tidak ditemukan.');
+
+    const headerBaru = {
+      supplier_id: req.body.supplier_id || pembelianLama.supplier_id,
+      total, status_bayar: statusBayarFinal, total_dibayar: dibayar, catatan,
+    };
+
+    if (user.role === 'owner') {
+      // Owner: perubahan langsung diterapkan — balikkan mutasi lama
+      // lebih dulu agar stok & kas tetap konsisten, lalu terapkan baru.
+      await balikkanMutasiPembelian(pembelianLama, user);
+      await terapkanDataPembelianBaru({
+        pembelianId: id, supplierId: headerBaru.supplier_id, cabangId: pembelianLama.cabang_id,
+        headerBaru, detailRows, nomorPembelian: pembelianLama.nomor_pembelian, user,
+        keteranganSuffix: ' (hasil edit)',
+      });
+
+      await catatAudit({ tabel: 'pembelian', recordId: id, aksi: 'update', dataLama: pembelianLama, dataBaru: { ...pembelianLama, ...headerBaru }, userId: user.id });
+      req.flash('success', `Pembelian ${pembelianLama.nomor_pembelian} berhasil diperbarui.`);
+      return res.redirect(`/pembelian/${id}`);
+    }
+
+    // Admin: masuk Approval Queue, stok & kas TIDAK berubah dulu.
+    const dataBaruLengkap = { header: headerBaru, detail: detailRows };
+    const dataLamaLengkap = { header: pembelianLama, detail: pembelianLama.pembelian_detail };
+
+    const { error: errQueue } = await supabaseAdmin.from('approval_queue').insert({
+      tabel_target: 'pembelian',
+      record_id: id,
+      jenis_perubahan: 'edit',
+      data_lama: dataLamaLengkap,
+      data_baru: dataBaruLengkap,
+      alasan: alasan_perubahan || null,
+      diajukan_oleh: user.id,
+    });
+    if (errQueue) throw errQueue;
+
+    req.flash('success', 'Perubahan pembelian berhasil diajukan, menunggu persetujuan Owner.');
+    res.redirect('/pembelian');
+  } catch (err) {
+    console.error('[pembelian edit] error:', err.message);
+    req.flash('error', 'Gagal menyimpan perubahan: ' + err.message);
+    res.redirect(`/pembelian/${id}/edit`);
+  }
+}
+
+module.exports = {
+  listPembelian, formTambahPembelian, simpanTambahPembelian, detailPembelian,
+  formEditPembelian, simpanEditPembelian, balikkanMutasiPembelian, terapkanDataPembelianBaru,
+};

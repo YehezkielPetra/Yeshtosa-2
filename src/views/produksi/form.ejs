@@ -2,7 +2,38 @@
 
 <div class="max-w-2xl">
   <div class="panel p-5">
-    <form action="<%= typeof produksi !== 'undefined' && produksi ? `/produksi/${produksi.id}/edit` : '/produksi/tambah' %>" method="POST" class="space-y-4">
+    <form action="<%= typeof produksi !== 'undefined' && produksi ? `/produksi/${produksi.id}/edit` : '/produksi/tambah' %>" method="POST" class="space-y-4" id="form-produksi">
+      <!-- ============================================================
+           Simulasi & Optimasi Sisa Adonan (Production Yield Optimizer)
+           Input ini murni bantuan hitung di sisi frontend (tidak
+           dikirim ke backend / tidak tersimpan ke database) — tujuannya
+           supaya Admin/Produksi bisa memantau pemakaian & sisa adonan
+           Beras Ketan secara real-time sebelum menyimpan data produksi.
+      ============================================================ -->
+      <div class="rounded-md border border-gold/40 bg-gold/10 p-4">
+        <label class="label-field">Total Beras Ketan yang Dimasak Hari Ini (kg)</label>
+        <input type="number" step="0.01" min="0" id="total_ketan_dimasak" class="input-field bg-white" placeholder="Misal: 25" value="0">
+        <p class="text-xs text-ink/40 mt-1.5">Dipakai untuk menghitung sisa adonan secara real-time. Nilai ini tidak ikut tersimpan ke data produksi.</p>
+
+        <div id="ringkasan-ketan" class="mt-3 grid grid-cols-3 gap-2 text-center text-xs">
+          <div class="bg-white rounded-md border border-line py-2">
+            <p class="text-ink/40 uppercase tracking-wide text-[10px]">Dimasak</p>
+            <p id="ringkasan-dimasak" class="font-display font-semibold text-ink text-sm mt-0.5">0 kg</p>
+          </div>
+          <div class="bg-white rounded-md border border-line py-2">
+            <p class="text-ink/40 uppercase tracking-wide text-[10px]">Terpakai</p>
+            <p id="ringkasan-terpakai" class="font-display font-semibold text-ink text-sm mt-0.5">0 kg</p>
+          </div>
+          <div class="bg-white rounded-md border border-line py-2">
+            <p class="text-ink/40 uppercase tracking-wide text-[10px]">Sisa Adonan</p>
+            <p id="ringkasan-sisa" class="font-display font-semibold text-sage-dark text-sm mt-0.5">0 kg</p>
+          </div>
+        </div>
+        <p id="peringatan-ketan-minus" class="text-xs text-warn font-medium mt-2 hidden">
+          ⚠ Total pcs yang dibuat melebihi Beras Ketan yang dimasak. Sesuaikan jumlah pcs sebelum menyimpan.
+        </p>
+      </div>
+
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label class="label-field">Tanggal Produksi</label>
@@ -34,13 +65,23 @@
         <p class="text-xs text-ink/40 mt-2">Stok bahan baku akan otomatis berkurang sesuai resep produk yang sudah didaftarkan.</p>
       </div>
 
+      <!-- ============================================================
+           Panel Rekomendasi Pemanfaatan Sisa Adonan
+      ============================================================ -->
+      <div id="panel-rekomendasi" class="rounded-md border border-sage/40 bg-sage/10 p-4">
+        <p class="text-xs font-semibold uppercase tracking-wide text-sage-dark mb-2">Rekomendasi Pemanfaatan Sisa Adonan</p>
+        <div id="rekomendasi-isi" class="text-sm text-ink/70">
+          Isi adonan Beras Ketan dan item produksi di atas untuk melihat rekomendasi.
+        </div>
+      </div>
+
       <div>
         <label class="label-field">Catatan</label>
         <textarea name="catatan" rows="2" class="input-field"><%= typeof produksi !== 'undefined' && produksi && produksi.catatan ? produksi.catatan : '' %></textarea>
       </div>
 
       <div class="flex gap-3 pt-2">
-        <button type="submit" class="btn-primary"><%= typeof produksi !== 'undefined' && produksi ? 'Simpan Perubahan' : 'Simpan Produksi' %></button>
+        <button type="submit" id="btn-submit-produksi" class="btn-primary"><%= typeof produksi !== 'undefined' && produksi ? 'Simpan Perubahan' : 'Simpan Produksi' %></button>
         <a href="/produksi" class="btn-secondary">Batal</a>
       </div>
     </form>
@@ -58,27 +99,155 @@
     searchText: `${p.nama_produk} ${p.kode_produk || ''}`,
   }));
 
+  // Koefisien (kg Beras Ketan per 1 pcs) untuk setiap produk, dipakai
+  // Production Yield Optimizer untuk menghitung berat ketan terpakai
+  // & menyusun rekomendasi pemanfaatan sisa adonan secara real-time.
+  const KOEFISIEN_KETAN_MAP = new Map(PRODUK_LIST.map(p => [p.id, Number(p.koefisien_ketan) || 0]));
+
   function tambahItem(produkId, jumlah) {
     itemCount++;
     const idx = itemCount;
     const container = document.getElementById('item-container');
     const div = document.createElement('div');
-    div.className = 'flex gap-2 items-center item-row';
+    div.className = 'border border-line rounded-md p-3 space-y-2 item-row';
     div.innerHTML = `
-      <div class="combo-wrap flex-1" data-name="produk_id_${idx}">
-        <input type="text" class="input-field combo-input" placeholder="Cari produk..." autocomplete="off">
-        <input type="hidden" name="produk_id" class="combo-value">
-        <div class="combo-dropdown hidden"></div>
+      <div class="flex gap-2 items-center">
+        <div class="combo-wrap flex-1" data-name="produk_id_${idx}">
+          <input type="text" class="input-field combo-input" placeholder="Cari produk..." autocomplete="off">
+          <input type="hidden" name="produk_id" class="combo-value produk-select">
+          <div class="combo-dropdown hidden"></div>
+        </div>
+        <input type="number" name="jumlah" min="1" value="${jumlah || 1}" class="input-field w-28 jumlah-input" placeholder="Pcs dibuat">
+        <button type="button" onclick="hapusItem(this)" class="text-warn text-sm px-2">✕</button>
       </div>
-      <input type="number" name="jumlah" min="1" value="${jumlah || 1}" class="input-field w-28">
-      <button type="button" onclick="this.closest('.item-row').remove()" class="text-warn text-sm px-2">✕</button>
+      <p class="text-xs text-ink/40">Ketan terpakai baris ini: <span class="ketan-terpakai font-medium text-ink/60">0 kg</span></p>
     `;
     container.appendChild(div);
 
     initCombobox(div.querySelector(`[data-name="produk_id_${idx}"]`), produkItemsBase, {
       initialId: produkId || null,
+      onSelect() { hitungSemua(); },
     });
+    div.querySelector('.jumlah-input').addEventListener('input', hitungSemua);
+
+    hitungSemua();
   }
+
+  function hapusItem(btn) {
+    btn.closest('.item-row').remove();
+    hitungSemua();
+  }
+
+  /**
+   * Inti Production Yield Optimizer: dipanggil setiap kali ada
+   * perubahan (total ketan dimasak, produk dipilih, atau jumlah pcs
+   * diubah). Menghitung ulang berat ketan terpakai per baris & total,
+   * memperbarui sisa adonan, menyusun rekomendasi pemanfaatan sisa,
+   * dan mengunci tombol submit bila sisa adonan menjadi minus.
+   */
+  function hitungSemua() {
+    const totalDimasak = Number(document.getElementById('total_ketan_dimasak').value) || 0;
+    let totalTerpakai = 0;
+
+    document.querySelectorAll('.item-row').forEach(row => {
+      const produkId = row.querySelector('.produk-select').value;
+      const jumlah = Number(row.querySelector('.jumlah-input').value) || 0;
+      const koef = KOEFISIEN_KETAN_MAP.get(produkId) || 0;
+      const beratBaris = jumlah * koef;
+      totalTerpakai += beratBaris;
+      row.querySelector('.ketan-terpakai').textContent = beratBaris.toFixed(2) + ' kg';
+    });
+
+    const sisa = totalDimasak - totalTerpakai;
+
+    document.getElementById('ringkasan-dimasak').textContent = totalDimasak.toFixed(2) + ' kg';
+    document.getElementById('ringkasan-terpakai').textContent = totalTerpakai.toFixed(2) + ' kg';
+
+    const elSisa = document.getElementById('ringkasan-sisa');
+    const elPeringatan = document.getElementById('peringatan-ketan-minus');
+    const btnSubmit = document.getElementById('btn-submit-produksi');
+
+    elSisa.textContent = sisa.toFixed(2) + ' kg';
+
+    if (sisa < 0) {
+      elSisa.classList.remove('text-sage-dark');
+      elSisa.classList.add('text-warn');
+      elPeringatan.classList.remove('hidden');
+      btnSubmit.disabled = true;
+    } else {
+      elSisa.classList.remove('text-warn');
+      elSisa.classList.add('text-sage-dark');
+      elPeringatan.classList.add('hidden');
+      btnSubmit.disabled = false;
+    }
+
+    renderRekomendasi(sisa);
+  }
+
+  /**
+   * Menyusun rekomendasi produk apa saja yang bisa dibuat dari sisa
+   * adonan agar mendekati Zero Waste. Kandidat diambil dari produk
+   * yang punya koefisien Beras Ketan (bukan 0) dan sisa adonan masih
+   * cukup untuk minimal 1 pcs, lalu diurutkan dari koefisien terbesar
+   * (opsi "ukuran besar", pcs lebih sedikit) ke koefisien terkecil
+   * (opsi "ukuran kecil/lain", pcs lebih banyak) supaya user punya
+   * variasi pilihan.
+   */
+  function renderRekomendasi(sisa) {
+    const isiEl = document.getElementById('rekomendasi-isi');
+
+    if (!(sisa > 0.001)) {
+      isiEl.innerHTML = sisa < 0
+        ? `<p class="text-warn">Sisa adonan minus — kurangi jumlah pcs pada baris item sebelum menyimpan.</p>`
+        : `<p>Belum ada sisa adonan untuk direkomendasikan. Isi total Beras Ketan atau kurangi jumlah pcs pada item.</p>`;
+      return;
+    }
+
+    const kandidat = PRODUK_LIST
+      .filter(p => Number(p.koefisien_ketan) > 0 && Math.floor(sisa / Number(p.koefisien_ketan)) >= 1)
+      .sort((a, b) => Number(b.koefisien_ketan) - Number(a.koefisien_ketan))
+      .slice(0, 2);
+
+    if (kandidat.length === 0) {
+      isiEl.innerHTML = `<p>Sisa adonan (${sisa.toFixed(2)} kg) belum cukup untuk membuat 1 pcs produk apa pun yang punya resep Beras Ketan.</p>`;
+      return;
+    }
+
+    const daftarHtml = kandidat.map(p => {
+      const pcs = Math.floor(sisa / Number(p.koefisien_ketan));
+      return `
+        <div class="flex items-center justify-between gap-3 bg-white rounded-md border border-line px-3 py-2 mt-2">
+          <div class="text-sm">
+            <span class="font-medium text-ink">${p.nama_produk}</span>
+            <span class="text-ink/50"> — ${pcs} pcs</span>
+          </div>
+          <button type="button" class="text-clay text-xs font-semibold hover:underline whitespace-nowrap" onclick="terapkanRekomendasi('${p.id}', ${pcs})">+ Terapkan</button>
+        </div>
+      `;
+    }).join('');
+
+    isiEl.innerHTML = `<p>Sisa adonan ketan Anda (${sisa.toFixed(2)} kg) masih cukup untuk membuat:</p>${daftarHtml}`;
+  }
+
+  /**
+   * Dipanggil saat tombol "+ Terapkan" di panel rekomendasi diklik.
+   * Menambah baris baru di form produksi dengan produk & jumlah pcs
+   * yang direkomendasikan, sehingga sisa adonan mendekati 0 (Zero Waste).
+   */
+  function terapkanRekomendasi(produkId, jumlah) {
+    tambahItem(produkId, jumlah);
+  }
+
+  document.getElementById('total_ketan_dimasak').addEventListener('input', hitungSemua);
+
+  // Pengaman tambahan di sisi client: cegah submit walau tombol
+  // sempat ter-enable kembali oleh interaksi lain, selama sisa
+  // adonan masih minus.
+  document.getElementById('form-produksi').addEventListener('submit', (e) => {
+    if (document.getElementById('btn-submit-produksi').disabled) {
+      e.preventDefault();
+    }
+  });
 
   if (ITEM_AWAL.length > 0) {
     ITEM_AWAL.forEach(item => tambahItem(item.produk_id, item.jumlah));

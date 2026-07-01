@@ -6,6 +6,7 @@
 // ============================================================
 const { supabaseAdmin } = require('../config/supabase');
 const { catatAudit } = require('../utils/auditTrail');
+const { balikkanMutasiPembelian, terapkanDataPembelianBaru } = require('./pembelianController');
 
 async function listApproval(req, res) {
   const { status } = req.query;
@@ -82,6 +83,27 @@ async function setujuiPerubahan(req, res) {
           const { error: errDetail } = await supabaseAdmin.from('penjualan_detail').insert(detailToInsert);
           if (errDetail) throw errDetail;
         }
+      } else if (pengajuan.tabel_target === 'pembelian' && pengajuan.data_baru.header) {
+        // Struktur khusus pembelian: { header, detail }. Berbeda dari
+        // penjualan, pembelian menyentuh stok bahan baku & kas secara
+        // langsung, sehingga saat disetujui: balikkan dulu mutasi lama
+        // (berdasarkan kondisi TERKINI, bukan snapshot lama), lalu
+        // terapkan mutasi baru sesuai usulan Admin.
+        const { data: pembelianTerkini, error: errTerkini } = await supabaseAdmin
+          .from('pembelian').select('*, pembelian_detail(*)').eq('id', pengajuan.record_id).single();
+        if (errTerkini || !pembelianTerkini) throw new Error('Pembelian tidak ditemukan.');
+
+        await balikkanMutasiPembelian(pembelianTerkini, user);
+        await terapkanDataPembelianBaru({
+          pembelianId: pengajuan.record_id,
+          supplierId: pengajuan.data_baru.header.supplier_id || pembelianTerkini.supplier_id,
+          cabangId: pembelianTerkini.cabang_id,
+          headerBaru: pengajuan.data_baru.header,
+          detailRows: pengajuan.data_baru.detail || [],
+          nomorPembelian: pembelianTerkini.nomor_pembelian,
+          user,
+          keteranganSuffix: ' (hasil persetujuan pengajuan Admin)',
+        });
       } else {
         // Tabel lain: update langsung dengan objek data_baru
         const { error: errUpdate } = await supabaseAdmin
@@ -98,7 +120,7 @@ async function setujuiPerubahan(req, res) {
     } else if (pengajuan.jenis_perubahan === 'batal') {
       // "Batal" tidak menghapus baris, melainkan tandai status pembatalan
       // agar riwayat tetap utuh dan tidak benar-benar terhapus.
-      const catatanLama = pengajuan.tabel_target === 'penjualan' && pengajuan.data_lama.header
+      const catatanLama = pengajuan.data_lama && pengajuan.data_lama.header
         ? (pengajuan.data_lama.header.catatan || '')
         : (pengajuan.data_lama.catatan || '');
       const { error: errUpdate } = await supabaseAdmin
