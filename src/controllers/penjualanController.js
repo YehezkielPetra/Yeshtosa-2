@@ -20,7 +20,7 @@ async function listPenjualan(req, res) {
   // kolom termasuk yang tidak terpakai di halaman ini.
   let query = supabaseAdmin
     .from('penjualan')
-    .select('id, nomor_order, tanggal_order, status_produk, total, status_bayar, is_selesai, pelanggan:pelanggan_id(nama, kategori), cabang:cabang_id(nama)')
+    .select('id, nomor_order, tanggal_order, tanggal_kirim, status_produk, total, status_bayar, is_selesai, pelanggan:pelanggan_id(nama, kategori), cabang:cabang_id(nama)')
     .order('tanggal_order', { ascending: false })
     .limit(100);
 
@@ -31,9 +31,9 @@ async function listPenjualan(req, res) {
     // string template tanpa timezone) agar filter konsisten dengan
     // zona waktu lokal dan planner Postgres dapat memakai index
     // idx_penjualan_tanggal / idx_penjualan_cabang_tanggal dengan baik.
-    const mulai = new Date(`${tanggal}T00:00:00`);
-    const selesai = new Date(`${tanggal}T23:59:59.999`);
-    query = query.gte('tanggal_order', mulai.toISOString()).lte('tanggal_order', selesai.toISOString());
+    const mulai = `${tanggal}T00:00:00.000Z`;
+    const selesai = `${tanggal}T23:59:59.999Z`;
+    query = query.gte('tanggal_kirim', mulai).lte('tanggal_kirim', selesai);
   }
 
   const { data, error } = await query;

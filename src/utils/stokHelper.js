@@ -10,7 +10,7 @@ const { supabaseAdmin } = require('../config/supabase');
  * Mengubah stok bahan baku (tambah/kurang) dan mencatat mutasinya.
  * jumlahPerubahan: positif = masuk, negatif = keluar
  */
-async function ubahStokBahanBaku({ bahanBakuId, cabangId, jumlahPerubahan, referensiTipe, referensiId = null, keterangan = null, userId }) {
+async function ubahStokBahanBaku({ bahanBakuId, cabangId, jumlahPerubahan, referensiTipe, referensiId = null, keterangan = null, userId, izinkanStokNegatif = true }) {
   const { data: existing, error: errFind } = await supabaseAdmin
     .from('stok_bahan_baku')
     .select('*')
@@ -21,6 +21,10 @@ async function ubahStokBahanBaku({ bahanBakuId, cabangId, jumlahPerubahan, refer
 
   const jumlahSebelum = existing ? Number(existing.jumlah) : 0;
   const jumlahSesudah = jumlahSebelum + Number(jumlahPerubahan);
+
+  if (!izinkanStokNegatif && jumlahSesudah < 0) {
+    throw new Error(`Stok bahan baku tidak mencukupi untuk melakukan transaksi ini.`);
+  }
 
   if (existing) {
     const { error } = await supabaseAdmin

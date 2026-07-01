@@ -22,12 +22,13 @@
   <% } else { %>
     <div class="table-wrap">
     <table class="table-erp">
-      <thead><tr><th>No. Order</th><th>Tanggal</th><th>Pelanggan</th><th>Cabang</th><th>Produk</th><th>Total</th><th>Bayar</th><th>Selesai</th><th></th></tr></thead>
+      <thead><tr><th>No. Order</th><th>Tanggal Pesan</th><th>Tanggal Kirim</th><th>Pelanggan</th><th>Cabang</th><th>Produk</th><th>Total</th><th>Bayar</th><th>Selesai</th><th></th></tr></thead>
       <tbody>
         <% penjualanList.forEach(p => { %>
           <tr class="cursor-pointer" onclick="window.location='/penjualan/<%= p.id %>'">
             <td class="font-mono text-xs"><%= p.nomor_order %></td>
-            <td class="text-xs"><%= tanggalIndo(p.tanggal_order) %></td>
+            <td><%= p.tanggal_order ? new Date(p.tanggal_order).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-' %></td>
+            <td><%- p.tanggal_kirim ? new Date(p.tanggal_kirim).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '<span class="text-ink/30 italic">Belum diset</span>' %></td>
             <td><%= p.pelanggan ? p.pelanggan.nama : '-' %></td>
             <td class="text-xs text-ink/50"><%= p.cabang ? p.cabang.nama : '-' %></td>
             <td><%- include('../partials/status_produk_pill', { status: p.status_produk }) %></td>

@@ -60,7 +60,7 @@ async function prosesItemProduksi({ produksiId, produkId, jumlah, cabangId, stat
       bahanBakuId: r.bahan_baku_id, cabangId,
       jumlahPerubahan: -jumlahBahanTerpakai,
       referensiTipe: 'produksi', referensiId: produksiId,
-      keterangan: `Pakai bahan untuk produksi ${nomorProduksi}${keteranganSuffix}`, userId,
+      keterangan: `Pakai bahan untuk produksi ${nomorProduksi}${keteranganSuffix}`, userId, izinkanStokNegatif: true,
     });
 
     const hargaTerakhir = await ambilHargaBeliTerakhir(r.bahan_baku_id);
