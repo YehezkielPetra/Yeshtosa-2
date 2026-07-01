@@ -490,7 +490,7 @@ async function simpanEditPenjualan(req, res) {
     };
 
     if (user.role === 'owner') {
-      // MODIFIKASI: 1. Kembalikan stok lama ke gudang terlebih dahulu
+      // 1. Kembalikan stok lama ke gudang terlebih dahulu
       await balikkanMutasiStokPenjualan(penjualanLama, user);
 
       // Owner: perubahan langsung diterapkan
@@ -505,13 +505,14 @@ async function simpanEditPenjualan(req, res) {
         await supabaseAdmin.from('penjualan_detail').insert(detailToInsert);
       }
 
-      // MODIFIKASI: 2. Potong stok berdasarkan item baru hasil edit Owner
+      // 2. Potong stok berdasarkan item baru hasil edit Owner
       for (const d of detailRows) {
         await ubahStokProduk({
           produkId: d.produk_id, 
           cabangId: penjualanLama.cabang_id, 
-          status: status_produk || 'fresh',
-          jumlahPerubahan: -d.jumlah, // Nilai negatif untuk memotong stok penjualan baru
+          // Perbaikan Pengunci Status: Gunakan data dari header baru yang sudah divalidasi
+          status: dataHeaderBaru.status_produk, 
+          jumlahPerubahan: -d.jumlah, 
           referensiTipe: 'penjualan', 
           referensiId: id,
           keterangan: `Penjualan ${penjualanLama.nomor_order} (Hasil Edit Owner)`, 
