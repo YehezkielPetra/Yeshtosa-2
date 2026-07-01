@@ -6,7 +6,7 @@ const pelangganCtrl = require('../controllers/masterPelangganController');
 const supplierCtrl = require('../controllers/masterSupplierController');
 const stockPointCtrl = require('../controllers/masterStockPointController');
 const promoCtrl = require('../controllers/masterPromoController');
-const resepCtrl = require('../controllers/resepController');
+const resepCtrl = require('../controllers/resepController'); // <--- Menggunakan variabel resepCtrl ini
 const { requireLogin, requireRole } = require('../middlewares/auth');
 const { blokirAdminTulis } = require('../middlewares/readOnlyMaster');
 
@@ -32,7 +32,7 @@ router.post('/bahan-baku/tambah', requireRole('owner'), bahanCtrl.simpanTambahBa
 router.get('/bahan-baku/:id/edit', requireRole('owner', 'admin'), bahanCtrl.formEditBahanBaku);
 router.post('/bahan-baku/:id/edit', blokirAdminTulis, requireRole('owner'), bahanCtrl.simpanEditBahanBaku);
 
-// Master Pelanggan (TIDAK direstriksi — Admin tetap mengelola interaksi pelanggan harian)
+// Master Pelanggan (TIDAK direstriksi)
 router.get('/pelanggan', pelangganCtrl.listPelanggan);
 router.get('/pelanggan/cek-duplikat', requireRole('owner', 'admin'), pelangganCtrl.cekNamaDuplikat);
 router.get('/pelanggan/tambah', requireRole('owner', 'admin'), pelangganCtrl.formTambahPelanggan);
@@ -54,19 +54,22 @@ router.post('/stock-point/tambah', requireRole('owner'), stockPointCtrl.simpanTa
 router.get('/stock-point/:id/edit', requireRole('owner', 'admin'), stockPointCtrl.formEditStockPoint);
 router.post('/stock-point/:id/edit', blokirAdminTulis, requireRole('owner'), stockPointCtrl.simpanEditStockPoint);
 
-// Master Promo (baru) — HALAMAN INI HANYA DAPAT DIAKSES OLEH OWNER.
-// Promo hanya dapat dibuat, diubah, dan dihapus oleh Owner.
+// Master Promo
 router.get('/promo', requireRole('owner'), promoCtrl.listPromo);
 router.get('/promo/tambah', requireRole('owner'), promoCtrl.formTambahPromo);
 router.post('/promo/tambah', requireRole('owner'), promoCtrl.simpanTambahPromo);
 router.get('/promo/:id/edit', requireRole('owner'), promoCtrl.formEditPromo);
 router.post('/promo/:id/edit', requireRole('owner'), promoCtrl.simpanEditPromo);
 
-// Resep Produk — gramasi bahan baku per pcs, dinamis & dikelola Owner.
-// Bukan hardcode di kode; menentukan otomatisasi pengurangan stok
-// dan kalkulasi HPP saat produksi dicatat.
+// Resep Produk
 router.get('/resep', requireRole('owner'), resepCtrl.listResep);
 router.get('/resep/:id/edit', requireRole('owner'), resepCtrl.formEditResep);
 router.post('/resep/:id/edit', requireRole('owner'), resepCtrl.simpanResep);
+
+// ============================================================
+// FIX: Kata '/master' dihapus dari jalur agar tidak menumpuk 
+// dengan prefix bawaan dari app.js
+// ============================================================
+router.get('/resep/api/:id', resepCtrl.apiGetResepDetail);
 
 module.exports = router;

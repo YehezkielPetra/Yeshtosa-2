@@ -29,9 +29,10 @@
             <td class="font-medium text-warn"><%= rupiah(p.total_biaya_bahan) %></td>
             <td class="whitespace-nowrap">
               <a href="/produksi/<%= p.id %>/edit" class="text-clay text-sm font-medium hover:underline mr-3">Edit</a>
-              <form action="/produksi/<%= p.id %>/batalkan" method="POST" class="inline" onsubmit="return konfirmasiBatalkan(this)">
+              
+              <form action="/produksi/<%= p.id %>/batalkan" method="POST" class="inline form-hapus-produksi">
                 <input type="hidden" name="alasan" class="alasan-input">
-                <button type="submit" class="text-warn text-sm font-medium hover:underline">Hapus</button>
+                <button type="button" onclick="prosesHapusProduksi(this)" class="text-warn text-sm font-medium hover:underline">Hapus</button>
               </form>
             </td>
           </tr>
@@ -42,13 +43,76 @@
   <% } %>
 </div>
 
+<div id="kustom-confirm-modal" class="hidden fixed inset-0 flex items-center justify-center p-4 bg-black/60" style="z-index: 999999 !important; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;">
+  <div class="bg-white rounded-lg max-w-md w-full p-6 space-y-4 shadow-2xl border border-line">
+    <h3 class="text-sm font-bold text-ink" id="modal-confirm-title">Konfirmasi Hapus</h3>
+    <p class="text-xs text-ink/60 leading-relaxed" id="modal-confirm-message">Apakah Anda yakin ingin menghapus data ini?</p>
+    
+    <div class="space-y-1">
+      <label class="text-[11px] font-semibold uppercase tracking-wide text-ink/50 block">Alasan Penghapusan (Opsional):</label>
+      <input type="text" id="modal-confirm-alasan" class="input-field text-xs w-full" placeholder="Misal: Salah input kuantitas adonan">
+    </div>
+
+    <div style="display: flex !important; justify-content: flex-end !important; align-items: center !important; gap: 8px !important; padding-top: 16px !important; border-top: 1px solid rgba(0,0,0,0.1) !important; margin-top: 8px !important;">
+      
+      <button type="button" id="modal-confirm-cancel" class="px-4 py-2 bg-line text-ink text-xs font-semibold rounded hover:bg-line/80 transition cursor-pointer">
+        Cancel
+      </button>
+      
+      <button type="button" id="modal-confirm-ok" class="rounded transition cursor-pointer" 
+              style="display: inline-block !important; 
+                     visibility: visible !important; 
+                     opacity: 1 !important; 
+                     background-color: #dc2626 !important; 
+                     color: #ffffff !important; 
+                     padding: 8px 20px !important; 
+                     font-size: 12px !important; 
+                     font-weight: 700 !important; 
+                     border: none !important;
+                     min-width: 80px !important;
+                     text-align: center !important;">
+        Hapus
+      </button>
+
+    </div>
+  </div>
+</div>
+
 <script>
-function konfirmasiBatalkan(form) {
-  if (!confirm('Yakin ingin menghapus produksi ini? Stok bahan baku dan produk yang terpengaruh akan otomatis dikembalikan.')) {
-    return false;
-  }
-  const alasan = prompt('Alasan penghapusan (opsional):');
-  form.querySelector('.alasan-input').value = alasan || '';
-  return true;
+const kustomModalEl = document.getElementById('kustom-confirm-modal');
+const modalInputAlasan = document.getElementById('modal-confirm-alasan');
+const modalBtnOk = document.getElementById('modal-confirm-ok');
+const modalBtnCancel = document.getElementById('modal-confirm-cancel');
+
+let formProduksiAktif = null;
+
+function prosesHapusProduksi(buttonEl) {
+  formProduksiAktif = buttonEl.closest('.form-hapus-produksi');
+  
+  if(modalInputAlasan) modalInputAlasan.value = '';
+
+  document.getElementById('modal-confirm-title').textContent = "Hapus Catatan Produksi";
+  document.getElementById('modal-confirm-message').textContent = "Yakin ingin menghapus produksi ini? Stok bahan baku dan produk yang terpengaruh akan otomatis dikembalikan ke gudang.";
+  
+  if(kustomModalEl) kustomModalEl.classList.remove('hidden');
+}
+
+if (modalBtnOk) {
+  modalBtnOk.addEventListener('click', function() {
+    if (kustomModalEl) kustomModalEl.classList.add('hidden');
+    
+    if (formProduksiAktif) {
+      const alasanTeks = modalInputAlasan ? modalInputAlasan.value.trim() : '';
+      formProduksiAktif.querySelector('.alasan-input').value = alasanTeks;
+      formProduksiAktif.submit();
+    }
+  });
+}
+
+if (modalBtnCancel) {
+  modalBtnCancel.addEventListener('click', function() {
+    if (kustomModalEl) kustomModalEl.classList.add('hidden');
+    formProduksiAktif = null;
+  });
 }
 </script>

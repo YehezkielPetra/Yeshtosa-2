@@ -7,10 +7,15 @@
 const { supabaseAdmin } = require('../config/supabase');
 const { catatAudit } = require('../utils/auditTrail');
 
+// ============================================================
+// PERBAIKAN: Tambahkan tipe_blok ke dalam select queries
+// ============================================================
+
 async function listResep(req, res) {
+  // Tambahkan tipe_blok di dalam relasi resep_produk(*)
   const { data: produkList, error } = await supabaseAdmin
     .from('master_produk')
-    .select('*, resep_produk(*, bahan_baku:bahan_baku_id(nama_bahan, satuan))')
+    .select('*, resep_produk(id, produk_id, bahan_baku_id, jumlah_per_batch, target_hasil_pcs, jumlah_per_unit, tipe_blok, bahan_baku:bahan_baku_id(nama_bahan, satuan))')
     .eq('is_aktif', true)
     .order('nama_produk');
   if (error) req.flash('error', 'Gagal memuat resep: ' + error.message);
@@ -19,21 +24,40 @@ async function listResep(req, res) {
 
 async function formEditResep(req, res) {
   const { id } = req.params; // produk_id
+  
+  // 1. Ambil data produk yang sedang diedit beserta resepnya (Kodingan Anda)
   const { data: produk, error } = await supabaseAdmin
     .from('master_produk')
-    .select('*, resep_produk(*, bahan_baku:bahan_baku_id(nama_bahan, satuan))')
-    .eq('id', id).single();
+    .select('*, resep_produk(id, produk_id, bahan_baku_id, jumlah_per_batch, target_hasil_pcs, jumlah_per_unit, tipe_blok, bahan_baku:bahan_baku_id(nama_bahan, satuan))')
+    .eq('id', id)
+    .single();
+    
   if (error || !produk) {
     req.flash('error', 'Produk tidak ditemukan.');
     return res.redirect('/master/resep');
   }
+
+  // 2. KUNCI UTAMA: Ambil daftar semua produk aktif untuk mengisi dropdown salin resep di EJS
+  const { data: produkList } = await supabaseAdmin
+    .from('master_produk')
+    .select('id, nama_produk')
+    .eq('is_aktif', true)
+    .order('nama_produk');
+  
+  // 3. Ambil data master bahan baku untuk pilihan select option (Kodingan Anda)
   const { data: bahanList } = await supabaseAdmin
     .from('master_bahan_baku')
     .select('id, nama_bahan, satuan')
     .eq('is_aktif', true)
     .order('nama_bahan');
 
-  res.render('master/resep_form', { title: `Resep — ${produk.nama_produk}`, produk, bahanList: bahanList || [] });
+  // 4. Kirimkan produkList ke halaman EJS agar perulangan di dropdown tidak crash
+  res.render('master/resep_form', { 
+    title: `Resep — ${produk.nama_produk}`, 
+    produk, 
+    bahanList: bahanList || [] ,
+    produkList: produkList || [] // <-- DISISIPKAN DI SINI
+  });
 }
 
 async function simpanResep(req, res) {
@@ -41,6 +65,7 @@ async function simpanResep(req, res) {
   let bahanIds = req.body.bahan_baku_id;
   let jumlahBatchArr = req.body.jumlah_per_batch;
   let targetHasilArr = req.body.target_hasil_pcs;
+  let tipeBlokArr = req.body.tipe_blok; // <-- TANGKAP INPUT BARU DARI EJS
 
   try {
     if (!bahanIds) {
@@ -49,10 +74,13 @@ async function simpanResep(req, res) {
       req.flash('success', 'Resep berhasil diperbarui (dikosongkan).');
       return res.redirect('/master/resep');
     }
+
+    // Normalisasi semua input menjadi Array jika hanya ada 1 baris yang diinput
     if (!Array.isArray(bahanIds)) {
       bahanIds = [bahanIds];
       jumlahBatchArr = [jumlahBatchArr];
       targetHasilArr = [targetHasilArr];
+      tipeBlokArr = [tipeBlokArr]; // <-- Ikut dinormalisasi
     }
 
     const { data: resepLama } = await supabaseAdmin.from('resep_produk').select('*').eq('produk_id', id);
@@ -64,9 +92,9 @@ async function simpanResep(req, res) {
       .map((bahanId, idx) => {
         const jmlBatch = Number(jumlahBatchArr[idx]) || 0;
         const targetHasil = Number(targetHasilArr[idx]) || 1;
+        const tipeBlok = tipeBlokArr[idx] || 'nasi'; // <-- Ambil nilai tipe_blok ('nasi' / 'ikan')
         
-        // Agar sistem harian tetap bekerja presisi tanpa membongkar total core database,
-        // kita simpan nilai konversi per unit (jumlah_per_unit) = jumlah_per_batch / target_hasil_pcs
+        // Perhitungan nilai konversi untuk core stok otomatis harian
         const kgPerPcs = jmlBatch / targetHasil;
 
         return {
@@ -74,7 +102,8 @@ async function simpanResep(req, res) {
           bahan_baku_id: bahanId,
           jumlah_per_batch: jmlBatch,
           target_hasil_pcs: targetHasil,
-          jumlah_per_unit: kgPerPcs // Tetap isi untuk kompatibilitas core stok otomatis harian
+          jumlah_per_unit: kgPerPcs,
+          tipe_blok: tipeBlok // <-- MASUKKAN KE OBJEK INSERT SUPABASE
         };
       })
       .filter(r => r.bahan_baku_id && r.jumlah_per_batch > 0);
@@ -84,7 +113,16 @@ async function simpanResep(req, res) {
       if (error) throw error;
     }
 
-    await catatAudit({ tabel: 'resep_produk', recordId: id, aksi: 'update', dataLama: resepLama, dataBaru: rows, userId: req.session.user.id });
+    // Catat riwayat perubahan ke Audit Trail
+    await catatAudit({ 
+      tabel: 'resep_produk', 
+      recordId: id, 
+      aksi: 'update', 
+      dataLama: resepLama, 
+      dataBaru: rows, 
+      userId: req.session.user.id 
+    });
+
     req.flash('success', 'Resep berbasis Batch berhasil diperbarui.');
     res.redirect('/master/resep');
   } catch (err) {
@@ -93,4 +131,30 @@ async function simpanResep(req, res) {
   }
 }
 
-module.exports = { listResep, formEditResep, simpanResep };
+async function apiGetResepDetail(req, res) {
+  const { id } = req.params; // produk_id asal yang mau dikopi
+  
+  try {
+    const { data: resep, error } = await supabaseAdmin
+      .from('resep_produk')
+      .select(`
+        id, 
+        bahan_baku_id, 
+        jumlah_per_batch, 
+        target_hasil_pcs, 
+        jumlah_per_unit, 
+        tipe_blok, 
+        bahan_baku:master_bahan_baku(nama_bahan, satuan)
+      `) // <-- PERBAIKAN: Mengubah nama join dari bahan_baku_id menjadi master_bahan_baku
+      .eq('produk_id', id);
+
+    if (error) throw error;
+
+    return res.json({ success: true, resep: resep || [] });
+  } catch (err) {
+    console.error('[API Get Resep Error]:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+}
+
+module.exports = { listResep, formEditResep, simpanResep, apiGetResepDetail };
