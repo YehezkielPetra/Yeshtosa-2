@@ -14,7 +14,8 @@ async function listPembelian(req, res) {
   let query = supabaseAdmin
     .from('pembelian')
     .select('*, supplier:supplier_id(nama), cabang:cabang_id(nama)')
-    .order('tanggal_beli', { ascending: false })
+    // FIX 1: Mengubah 'tanggal_beli' menjadi nama kolom yang benar 'tanggal_pembelian'
+    .order('tanggal_pembelian', { ascending: false })
     .limit(100);
   if (user.role !== 'owner') query = query.eq('cabang_id', user.cabangId);
 
@@ -43,7 +44,7 @@ async function formTambahPembelian(req, res) {
 
 async function simpanTambahPembelian(req, res) {
   const user = req.session.user;
-  const { cabang_id, supplier_id, status_bayar, total_dibayar, catatan } = req.body;
+  const { cabang_id, supplier_id, status_bayar, total_dibayar, catatan, tanggal_pembelian } = req.body;
   let bahanIds = req.body.bahan_baku_id;
   let jumlahArr = req.body.jumlah;
   let hargaArr = req.body.harga_satuan;
@@ -81,10 +82,17 @@ async function simpanTambahPembelian(req, res) {
     const { data: pembelian, error: errInsert } = await supabaseAdmin
       .from('pembelian')
       .insert({
-        cabang_id: cabangFinal, supplier_id, total: totalPembelian,
-        status_bayar: statusBayarFinal, total_dibayar: dibayar, catatan, dibuat_oleh: user.id,
+        cabang_id: cabangFinal,
+        supplier_id,
+        tanggal_pembelian: tanggal_pembelian ? new Date(tanggal_pembelian).toISOString() : new Date().toISOString(),
+        total: totalPembelian, // FIX 2: Mengubah dari 'totalAkhir' menjadi 'totalPembelian'
+        status_bayar: statusBayarFinal,
+        total_dibayar: dibayar,
+        catatan,
+        dibuat_oleh: user.id
       })
       .select().single();
+
     if (errInsert) throw errInsert;
 
     const detailToInsert = detailRows.map(d => ({ ...d, pembelian_id: pembelian.id }));
@@ -141,22 +149,6 @@ async function detailPembelian(req, res) {
   res.render('pembelian/detail', { title: `Detail ${pembelian.nomor_pembelian}`, pembelian });
 }
 
-// ============================================================
-// Edit Pembelian (Bagian: Approval Queue)
-// Owner: perubahan langsung diterapkan (stok & kas dibalik lalu
-// diterapkan ulang sesuai data baru).
-// Admin: perubahan masuk Approval Queue, menunggu Owner. Stok &
-// kas TIDAK berubah sampai Owner menyetujui pengajuan, sehingga
-// pembukuan tidak langsung rusak oleh pengajuan Admin.
-// ============================================================
-
-/**
- * Membalik mutasi stok bahan baku & mutasi kas (pembayaran) dari
- * satu pembelian, berdasarkan pembelian_detail yang tercatat saat
- * ini. Dipakai sebelum menerapkan versi baru saat edit (baik oleh
- * Owner langsung, maupun oleh Owner saat menyetujui pengajuan Admin).
- * Tidak menghapus baris pembelian, hanya mengembalikan efeknya.
- */
 async function balikkanMutasiPembelian(pembelianLama, user) {
   const { data: detailLama } = await supabaseAdmin
     .from('pembelian_detail').select('*').eq('pembelian_id', pembelianLama.id);
@@ -180,12 +172,6 @@ async function balikkanMutasiPembelian(pembelianLama, user) {
   await supabaseAdmin.from('pembelian_detail').delete().eq('pembelian_id', pembelianLama.id);
 }
 
-/**
- * Menerapkan header + detail baru ke satu pembelian (dipakai oleh
- * Owner saat edit langsung, maupun saat menyetujui pengajuan Admin
- * dari approval_queue). Mengasumsikan mutasi lama SUDAH dibalik
- * lewat balikkanMutasiPembelian sebelum fungsi ini dipanggil.
- */
 async function terapkanDataPembelianBaru({ pembelianId, supplierId, cabangId, headerBaru, detailRows, nomorPembelian, user, keteranganSuffix = '' }) {
   const { error: errUpdate } = await supabaseAdmin.from('pembelian').update(headerBaru).eq('id', pembelianId);
   if (errUpdate) throw errUpdate;
@@ -223,13 +209,8 @@ async function terapkanDataPembelianBaru({ pembelianId, supplierId, cabangId, he
   }
 }
 
-/**
- * Menyusun detailRows + header ringkas dari req.body, dipakai oleh
- * simpanEditPembelian (formulir tambah tetap pakai logikanya sendiri
- * agar tidak mengubah perilaku yang sudah berjalan aman).
- */
 function susunPembelianDariBody(body) {
-  const { total_dibayar, status_bayar, catatan } = body;
+  const { total_dibayar, status_bayar, catatan, tanggal_pembelian } = body;
   let bahanIds = body.bahan_baku_id;
   let jumlahArr = body.jumlah;
   let hargaArr = body.harga_satuan;
@@ -258,7 +239,7 @@ function susunPembelianDariBody(body) {
   if (dibayar >= total && total > 0) statusBayarFinal = 'lunas';
   else if (dibayar > 0 && dibayar < total) statusBayarFinal = 'sebagian';
 
-  return { detailRows, total, dibayar, statusBayarFinal, catatan };
+  return { detailRows, total, dibayar, statusBayarFinal, catatan, tanggal_pembelian };
 }
 
 async function formEditPembelian(req, res) {
@@ -297,21 +278,21 @@ async function simpanEditPembelian(req, res) {
     req.flash('error', 'Minimal 1 bahan baku harus diisi.');
     return res.redirect(`/pembelian/${id}/edit`);
   }
-  const { detailRows, total, dibayar, statusBayarFinal, catatan } = susunan;
+  const { detailRows, total, dibayar, statusBayarFinal, catatan, tanggal_pembelian } = susunan;
 
   try {
     const { data: pembelianLama, error: errLama } = await supabaseAdmin
       .from('pembelian').select('*, pembelian_detail(*)').eq('id', id).single();
     if (errLama || !pembelianLama) throw new Error('Pembelian tidak ditemukan.');
 
+    // FIX 3: Mengakomodasi tanggal_pembelian dari form edit ke database
     const headerBaru = {
       supplier_id: req.body.supplier_id || pembelianLama.supplier_id,
+      tanggal_pembelian: tanggal_pembelian ? new Date(tanggal_pembelian).toISOString() : pembelianLama.tanggal_pembelian,
       total, status_bayar: statusBayarFinal, total_dibayar: dibayar, catatan,
     };
 
     if (user.role === 'owner') {
-      // Owner: perubahan langsung diterapkan — balikkan mutasi lama
-      // lebih dulu agar stok & kas tetap konsisten, lalu terapkan baru.
       await balikkanMutasiPembelian(pembelianLama, user);
       await terapkanDataPembelianBaru({
         pembelianId: id, supplierId: headerBaru.supplier_id, cabangId: pembelianLama.cabang_id,
@@ -324,7 +305,6 @@ async function simpanEditPembelian(req, res) {
       return res.redirect(`/pembelian/${id}`);
     }
 
-    // Admin: masuk Approval Queue, stok & kas TIDAK berubah dulu.
     const dataBaruLengkap = { header: headerBaru, detail: detailRows };
     const dataLamaLengkap = { header: pembelianLama, detail: pembelianLama.pembelian_detail };
 

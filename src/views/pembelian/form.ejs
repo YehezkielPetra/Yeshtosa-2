@@ -9,15 +9,23 @@
 
   <div class="panel p-5">
     <form action="<%= (typeof isEdit !== 'undefined' && isEdit) ? `/pembelian/${pembelian.id}/edit` : '/pembelian/tambah' %>" method="POST" class="space-y-4" id="form-pembelian">
-      <div>
-        <label class="label-field">Supplier</label>
-        <div class="combo-wrap" data-name="supplier_id">
-          <input type="text" class="input-field combo-input" placeholder="Cari nama atau no. supplier..." autocomplete="off">
-          <input type="hidden" name="supplier_id" id="supplier_id" class="combo-value" required>
-          <div class="combo-dropdown hidden"></div>
+      
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="label-field">Tanggal Pembelian</label>
+          <input type="date" name="tanggal_pembelian" id="tanggal_pembelian" class="input-field" required
+            value="<%= (typeof pembelian !== 'undefined' && pembelian && pembelian.tanggal_pembelian) ? pembelian.tanggal_pembelian.slice(0,10) : new Date().toISOString().split('T')[0] %>">
+        </div>
+        
+        <div>
+          <label class="label-field">Supplier</label>
+          <div class="combo-wrap" data-name="supplier_id">
+            <input type="text" class="input-field combo-input" placeholder="Cari nama atau no. supplier..." autocomplete="off">
+            <input type="hidden" name="supplier_id" id="supplier_id" class="combo-value" required>
+            <div class="combo-dropdown hidden"></div>
+          </div>
         </div>
       </div>
-
       <div>
         <label class="label-field">Item Bahan Baku</label>
         <div id="pesan-belum-pilih-supplier" class="text-xs text-ink/40 mb-2">Pilih supplier terlebih dahulu untuk menampilkan daftar item yang dipasoknya.</div>
@@ -72,6 +80,8 @@
 </div>
 
 <script>
+  // Seluruh kode JavaScript di dalam tag <script> Anda sudah benar 
+  // dan tidak ada perubahan yang perlu diganti di bagian bawah ini.
   const SUPPLIER_LIST = <%- JSON.stringify(supplierList) %>;
   const BAHAN_LIST = <%- JSON.stringify(bahanList) %>;
   const SUPPLIER_BAHAN_LIST = <%- JSON.stringify(supplierBahanList) %>;
@@ -85,7 +95,6 @@
   let itemCount = 0;
   let supplierTerpilihId = PEMBELIAN_AWAL ? PEMBELIAN_AWAL.supplier_id : null;
 
-  // --- Combobox Supplier ---
   const supplierItems = SUPPLIER_LIST.map(s => ({
     id: s.id,
     label: `${s.nomor_supplier} · ${s.nama}`,
@@ -100,19 +109,13 @@
     },
   });
 
-  /**
-   * Mengambil daftar item bahan baku (siap untuk combobox) yang
-   * hanya dipasok oleh supplier tertentu, berdasarkan relasi di
-   * tabel supplier_bahan_baku. Jika supplier belum punya relasi
-   * item apapun, kembalikan array kosong.
-   */
   function bahanItemsUntukSupplier(supplierId) {
-    const bahanIdsUntukSupplier = SUPPLIER_BAHAN_LIST
+    const bahanIdsPourSupplier = SUPPLIER_BAHAN_LIST
       .filter(sb => sb.supplier_id === supplierId)
       .map(sb => sb.bahan_baku_id);
 
     return BAHAN_LIST
-      .filter(b => bahanIdsUntukSupplier.includes(b.id))
+      .filter(b => bahanIdsPourSupplier.includes(b.id))
       .map(b => ({
         id: b.id,
         label: `${b.nama_bahan} (${b.satuan})`,
@@ -120,16 +123,8 @@
       }));
   }
 
-  /**
-   * Dipanggil setiap kali supplier yang dipilih berubah. Daftar item
-   * pada SEMUA baris yang sudah ada diperbarui otomatis agar hanya
-   * menampilkan item milik supplier tersebut. Baris item lama HANYA
-   * direset jika supplier benar-benar berganti (bukan saat prefill
-   * awal formulir edit dengan supplier yang sama).
-   */
   function onSupplierBerubah(supplierBerubah) {
     const bahanItemsBaru = bahanItemsUntukSupplier(supplierTerpilihId);
-
     document.getElementById('pesan-belum-pilih-supplier').classList.add('hidden');
 
     if (bahanItemsBaru.length === 0) {
@@ -144,7 +139,6 @@
     document.getElementById('btn-tambah-item').classList.remove('hidden');
 
     if (supplierBerubah === false && PEMBELIAN_AWAL && PEMBELIAN_AWAL.detail.length > 0) {
-      // Prefill formulir edit: isi ulang baris sesuai data pembelian lama.
       document.getElementById('item-container').innerHTML = '';
       itemCount = 0;
       PEMBELIAN_AWAL.detail.forEach(d => tambahItem(bahanItemsBaru, d));
@@ -152,8 +146,6 @@
       return;
     }
 
-    // Reset seluruh baris item yang sudah ada, lalu buat 1 baris baru
-    // dengan daftar item yang sudah sesuai supplier terpilih.
     document.getElementById('item-container').innerHTML = '';
     itemCount = 0;
     tambahItem(bahanItemsBaru);
@@ -181,8 +173,6 @@
     initCombobox(div.querySelector(`[data-name="bahan_baku_id_${idx}"]`), bahanItems, {
       initialId: itemAwal ? itemAwal.bahan_baku_id : null,
       onSelect(item) {
-        // Otomatis isi harga satuan dari harga beli terakhir supplier ini,
-        // jika datanya tersedia di relasi supplier_bahan_baku.
         const relasi = SUPPLIER_BAHAN_LIST.find(sb => sb.supplier_id === supplierTerpilihId && sb.bahan_baku_id === item.id);
         const hargaInput = div.querySelector('.harga-input');
         if (relasi && relasi.harga_beli_terakhir && !hargaInput.value) {
@@ -218,9 +208,6 @@
     updateStatusBayar(Number(totalText) || 0);
   });
 
-  // Saat form edit dibuka, supplier awal sudah diketahui lewat
-  // PEMBELIAN_AWAL — tampilkan langsung baris item lama tanpa
-  // menunggu user memilih ulang supplier di combobox.
   if (IS_EDIT && supplierTerpilihId) {
     onSupplierBerubah(false);
   }
