@@ -244,7 +244,7 @@ async function prosesCopyResep() {
   const produkAsalId = document.getElementById('produk_asal_copy').value;
   if (!produkAsalId) return alert("Silakan pilih produk asal terlebih dahulu!");
 
-  // MENGGUNAKAN MODAL KUSTOM SEKARANG
+  // Menggunakan Modal Kustom Anda yang sudah berjalan normal
   bukaModalKustom(
     "Salin Formula Resep", 
     "Menyalin resep akan mengosongkan takaran yang sedang tampil di layar saat ini. Lanjutkan?", 
@@ -254,27 +254,50 @@ async function prosesCopyResep() {
         const result = await response.json();
 
         if (!result.success) throw new Error(result.message);
-        if (result.resep.length === 0) return alert("Produk asal belum memiliki formula resep.");
+        if (!result.resep || result.resep.length === 0) return alert("Produk asal belum memiliki formula resep.");
 
+        // 1. Bersihkan layar saat ini dari isian lama
         document.getElementById('ketan-container').innerHTML = '';
         document.getElementById('ikan-container').innerHTML = '';
 
-        const itemKetan = result.resep.find(r => r.tipe_blok === 'nasi');
+        // 2. Ambil nilai target hasil global dari produk asal
+        const itemKetan = result.resep.find(r => {
+          const blok = (r.tipe_blok || '').toLowerCase();
+          const nama = r.bahan_baku ? (r.bahan_baku.nama_bahan || '').toLowerCase() : '';
+          return blok === 'nasi' || nama.includes('beras') || nama.includes('ketan');
+        });
         if (itemKetan) document.getElementById('target_ketan_global').value = itemKetan.target_hasil_pcs;
         
-        const itemIkan = result.resep.find(r => r.tipe_blok === 'ikan');
-        if (itemIkan) document.getElementById('target_ikan_global').value = itemIkan.target_hasil_pcs;
+        const itemIkan = result.resep.find(r => {
+          const blok = (r.tipe_blok || '').toLowerCase();
+          const nama = r.bahan_baku ? (r.bahan_baku.nama_bahan || '').toLowerCase() : '';
+          return blok === 'ikan' || nama.includes('tuna') || nama.includes('ikan');
+        });
+        if (itemIkan) document.getElementById('target_ikan_global').value = itemIkan.target_hasil_pcs || 40;
 
+        // 3. Masukkan baris baru dengan validasi toleransi huruf besar/kecil (Case-Insensitive)
         result.resep.forEach(r => {
-          if (r.tipe_blok === 'nasi') {
+          // Normalisasi teks agar aman dari perbedaan kapitalisasi data lama
+          const blokClean = (r.tipe_blok || '').toLowerCase().trim();
+          const namaBahanClean = r.bahan_baku ? (r.bahan_baku.nama_bahan || '').toLowerCase() : '';
+
+          if (blokClean === 'nasi') {
             tambahBarisKetan(r.bahan_baku_id, r.jumlah_per_batch, r.target_hasil_pcs);
-          } else if (r.tipe_blok === 'ikan') {
+          } else if (blokClean === 'ikan') {
             tambahBarisIkan(r.bahan_baku_id, r.jumlah_per_batch);
+          } else {
+            // CADANGAN: Jika tipe_blok kosong/null di database, deteksi lewat nama bahannya
+            if (namaBahanClean.includes('beras') || namaBahanClean.includes('ketan') || namaBahanClean.includes('santan') || namaBahanClean.includes('daun')) {
+              tambahBarisKetan(r.bahan_baku_id, r.jumlah_per_batch, r.target_hasil_pcs);
+            } else {
+              tambahBarisIkan(r.bahan_baku_id, r.jumlah_per_batch);
+            }
           }
         });
 
-        alert("Resep berhasil disalin ke layar! Jangan lupa sesuaikan takaran lalu klik Simpan Resep Batch.");
+        alert("Resep berhasil disalin ke layar! Silakan sesuaikan takaran bumbu ukuran baru ini, lalu klik Simpan Resep Batch.");
       } catch (err) {
+        console.error("Gagal memproses copy resep:", err);
         alert("Gagal menyalin resep: " + err.message);
       }
     }
