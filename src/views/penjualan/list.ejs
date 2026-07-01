@@ -2,6 +2,7 @@
 
 <div class="space-y-6">
   
+  <!-- ======================== 1. PANEL HARI INI (ATAS) ======================== -->
   <div class="panel p-5 bg-white border-l-4 border-l-gold">
     <div class="flex justify-between items-center border-b border-line pb-3 mb-4">
       <div>
@@ -25,7 +26,7 @@
               <th>Tanggal Kirim</th>
               <th>Pelanggan</th>
               <th>Cabang</th>
-              <th>Produk</th>
+              <th class="w-64">Detail Pesanan</th> <!-- Judul kolom disesuaikan -->
               <th>Total</th>
               <th>Bayar</th>
               <th>Selesai</th>
@@ -40,7 +41,22 @@
                 <td><%- p.tanggal_kirim ? new Date(p.tanggal_kirim).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '<span class="text-ink/30 italic">Belum diset</span>' %></td>
                 <td><%= p.pelanggan ? p.pelanggan.nama : '-' %></td>
                 <td class="text-xs text-ink/50"><%= p.cabang ? p.cabang.nama : '-' %></td>
-                <td><%- include('../partials/status_produk_pill', { status: p.status_produk }) %></td>
+                <td>
+                  <div class="mb-1"><%- include('../partials/status_produk_pill', { status: p.status_produk }) %></div>
+                  <!-- Menampilkan Rincian Item Barang -->
+                  <div class="text-[11px] text-ink/70 space-y-0.5 mt-1">
+                    <% if (p.penjualan_detail && p.penjualan_detail.length > 0) { %>
+                      <% p.penjualan_detail.forEach(d => { %>
+                        <div class="flex justify-between border-b border-ink/5 pb-0.5">
+                          <span>• <%= d.produk ? d.produk.nama_produk : 'Produk' %></span>
+                          <span class="font-bold text-ink"><%= d.jumlah %> pcs</span>
+                        </div>
+                      <% }) %>
+                    <% } else { %>
+                      <span class="text-ink/30 italic">Tidak ada item</span>
+                    <% } %>
+                  </div>
+                </td>
                 <td class="font-medium"><%= rupiah(p.total) %></td>
                 <td><%- include('../partials/status_bayar_pill', { status: p.status_bayar }) %></td>
                 <td><span class="pill <%= p.is_selesai ? 'pill-lunas' : 'pill-pending' %>"><%= p.is_selesai ? 'Selesai' : 'Berjalan' %></span></td>
@@ -57,6 +73,7 @@
     <% } %>
   </div>
 
+  <!-- ======================== 2. PANEL RIWAYAT & FILTER (BAWAH) ======================== -->
   <div class="panel p-5 bg-white">
     <div class="flex flex-wrap justify-between items-center gap-3 border-b border-line pb-3 mb-4">
       <div>
@@ -93,7 +110,7 @@
               <th>Tanggal Kirim</th>
               <th>Pelanggan</th>
               <th>Cabang</th>
-              <th>Produk</th>
+              <th class="w-64">Detail Pesanan</th>
               <th>Total</th>
               <th>Bayar</th>
               <th>Selesai</th>
@@ -108,7 +125,22 @@
                 <td><%- p.tanggal_kirim ? new Date(p.tanggal_kirim).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '<span class="text-ink/30 italic">Belum diset</span>' %></td>
                 <td><%= p.pelanggan ? p.pelanggan.nama : '-' %></td>
                 <td class="text-xs text-ink/50"><%= p.cabang ? p.cabang.nama : '-' %></td>
-                <td><%- include('../partials/status_produk_pill', { status: p.status_produk }) %></td>
+                <td>
+                  <div class="mb-1"><%- include('../partials/status_produk_pill', { status: p.status_produk }) %></div>
+                  <!-- Menampilkan Rincian Item Barang -->
+                  <div class="text-[11px] text-ink/70 space-y-0.5 mt-1">
+                    <% if (p.penjualan_detail && p.penjualan_detail.length > 0) { %>
+                      <% p.penjualan_detail.forEach(d => { %>
+                        <div class="flex justify-between border-b border-ink/5 pb-0.5">
+                          <span>• <%= d.produk ? d.produk.nama_produk : 'Produk' %></span>
+                          <span class="font-bold text-ink"><%= d.jumlah %> pcs</span>
+                        </div>
+                      <% }) %>
+                    <% } else { %>
+                      <span class="text-ink/30 italic">Tidak ada item</span>
+                    <% } %>
+                  </div>
+                </td>
                 <td class="font-medium"><%= rupiah(p.total) %></td>
                 <td><%- include('../partials/status_bayar_pill', { status: p.status_bayar }) %></td>
                 <td><span class="pill <%= p.is_selesai ? 'pill-lunas' : 'pill-pending' %>"><%= p.is_selesai ? 'Selesai' : 'Berjalan' %></span></td>

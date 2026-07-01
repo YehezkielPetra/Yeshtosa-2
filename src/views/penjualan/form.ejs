@@ -46,7 +46,7 @@
       </div>
 
       <!-- Logistik pengiriman: hanya tampil/aktif jika metode = Dikirim -->
-      <div id="logistik-kirim" class="grid grid-cols-1 sm:grid-cols-2 gap-4 hidden">
+      <div id="logistik-kirim" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label class="label-field">Tanggal Kirim</label>
           <input type="date" name="tanggal_kirim" id="tanggal_kirim" class="input-field"
@@ -372,6 +372,7 @@
     updateStatusBayar(Number(totalText) || 0);
   });
 
+  /*
   // Tampilkan/sembunyikan field logistik kirim sesuai metode
   function toggleLogistikKirim() {
     const metode = document.getElementById('metode_ambil_kirim').value;
@@ -380,7 +381,8 @@
   }
   document.getElementById('metode_ambil_kirim').addEventListener('change', toggleLogistikKirim);
   toggleLogistikKirim();
-
+  */
+  
   // Mulai dengan item awal (mode edit) atau 1 item kosong (mode tambah)
   if (ITEM_AWAL.length > 0) {
     ITEM_AWAL.forEach(item => tambahItem(item.produk_id, item.jumlah, 'flat', item.diskon_nominal));

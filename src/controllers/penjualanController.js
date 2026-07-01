@@ -52,11 +52,11 @@ async function listPenjualan(req, res) {
 
   try {
     // -----------------------------------------------------------------
-    // QUERIES 1: Hanya mengambil penjualan HARI INI
+    // QUERIES 1: Hanya mengambil penjualan HARI INI (Ditambahkan relasi detail)
     // -----------------------------------------------------------------
     let queryHariIni = supabaseAdmin
       .from('penjualan')
-      .select('id, nomor_order, tanggal_order, tanggal_kirim, status_produk, total, status_bayar, is_selesai, pelanggan:pelanggan_id(nama, kategori), cabang:cabang_id(nama)')
+      .select('id, nomor_order, tanggal_order, tanggal_kirim, status_produk, total, status_bayar, is_selesai, pelanggan:pelanggan_id(nama, kategori), cabang:cabang_id(nama), penjualan_detail(jumlah, produk:produk_id(nama_produk))')
       .gte('tanggal_order', hariIniMulai)
       .lte('tanggal_order', hariIniSelesai)
       .order('tanggal_order', { ascending: false });
@@ -65,18 +65,17 @@ async function listPenjualan(req, res) {
     const { data: penjualanHariIni } = await queryHariIni;
 
     // -----------------------------------------------------------------
-    // QUERIES 2: Mengambil data Riwayat yang bisa DILAKUKAN FILTER
+    // QUERIES 2: Mengambil data Riwayat (Ditambahkan relasi detail)
     // -----------------------------------------------------------------
     let queryRiwayat = supabaseAdmin
       .from('penjualan')
-      .select('id, nomor_order, tanggal_order, tanggal_kirim, status_produk, total, status_bayar, is_selesai, pelanggan:pelanggan_id(nama, kategori), cabang:cabang_id(nama)')
+      .select('id, nomor_order, tanggal_order, tanggal_kirim, status_produk, total, status_bayar, is_selesai, pelanggan:pelanggan_id(nama, kategori), cabang:cabang_id(nama), penjualan_detail(jumlah, produk:produk_id(nama_produk))')
       .order('tanggal_order', { ascending: false })
       .limit(100);
 
     if (user.role !== 'owner') queryRiwayat = queryRiwayat.eq('cabang_id', user.cabangId);
     if (status_bayar) queryRiwayat = queryRiwayat.eq('status_bayar', status_bayar);
     
-    // Jika ada tanggal yang difilter oleh user di form bawah
     if (tanggal) {
       const mulai = `${tanggal}T00:00:00.000Z`;
       const selesai = `${tanggal}T23:59:59.999Z`;
@@ -249,7 +248,7 @@ async function simpanTambahPenjualan(req, res) {
   }
 
   const cabangFinal = cabang_id || user.cabangId;
-  const izinkanStokNegatif = konfirmasi_stok_kurang === '1';
+  const izinkanStokNegatif = (user.role === 'owner') || (konfirmasi_stok_kurang === '1');
 
   try {
     const { data: pelanggan, error: errPelanggan } = await supabaseAdmin
@@ -298,8 +297,11 @@ async function simpanTambahPenjualan(req, res) {
         tanggal_order: tanggal_order ? new Date(tanggal_order).toISOString() : new Date().toISOString(),
         status_produk: status_produk || 'fresh',
         metode_ambil_kirim: metode_ambil_kirim || 'diambil',
-        tanggal_kirim: metode_ambil_kirim === 'dikirim' && tanggal_kirim ? tanggal_kirim : null,
-        jam_kirim: metode_ambil_kirim === 'dikirim' && jam_kirim ? jam_kirim : null,
+        
+        // PERBAIKAN: Langsung simpan nilai tanggal & jam tanpa peduli apa metodenya
+        tanggal_kirim: tanggal_kirim ? tanggal_kirim : null,
+        jam_kirim: jam_kirim ? jam_kirim : null,
+        
         subtotal: subtotalKeseluruhan,
         diskon_nominal: totalDiskonItem + potonganAkhir,
         promo_v2_id: promo_v2_id || null,
@@ -468,8 +470,11 @@ async function simpanEditPenjualan(req, res) {
       tanggal_order: tanggal_order ? new Date(tanggal_order).toISOString() : penjualanLama.tanggal_order,
       status_produk: status_produk || 'fresh',
       metode_ambil_kirim: metode_ambil_kirim || 'diambil',
-      tanggal_kirim: metode_ambil_kirim === 'dikirim' && tanggal_kirim ? tanggal_kirim : null,
-      jam_kirim: metode_ambil_kirim === 'dikirim' && jam_kirim ? jam_kirim : null,
+      
+      // PERBAIKAN: Selalu perbarui nilai tanggal & jam kirim/ambil dari formulir
+      tanggal_kirim: tanggal_kirim ? tanggal_kirim : null,
+      jam_kirim: jam_kirim ? jam_kirim : null,
+      
       subtotal: subtotalKeseluruhan,
       diskon_nominal: totalDiskonItem + potonganAkhir,
       promo_v2_id: promo_v2_id || null,
